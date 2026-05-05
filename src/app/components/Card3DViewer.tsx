@@ -56,21 +56,22 @@ function buildCardPanels(cardGroup: THREE.Group, scene: THREE.Scene, cardColor: 
     side: THREE.DoubleSide,
   });
 
-  const addPanel = (rotX: number) => {
+  const addPanel = (rotX: number, zOffset: number = 0) => {
     // PlaneGeometry in XY plane, bottom edge at origin, height up
     const geo = new THREE.PlaneGeometry(CARD_W, CARD_H);
     geo.translate(0, CARD_H / 2, 0);
     const mesh = new THREE.Mesh(geo, cardMat.clone());
     mesh.rotation.x = rotX;
+    mesh.position.z = zOffset;  // ADD THIS
     mesh.receiveShadow = true;
     mesh.userData.cardPart = true;
     cardGroup.add(mesh);
   };
 
   // front panel: tilts toward viewer (–z) in local space → stands vertical after group rotation
-  addPanel(-OPEN_ANGLE);
+  addPanel(-OPEN_ANGLE, 0);
   // back panel:  tilts away from viewer (+z) in local space → lies flat after group rotation
-  addPanel(+OPEN_ANGLE);
+  addPanel(+OPEN_ANGLE, 0);
 
   // Spine crease
   const spineMesh = new THREE.Mesh(

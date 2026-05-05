@@ -52,6 +52,7 @@ export interface VFoldParams {
   color:             string;  // hex colour for the design element
   imageData?:        string;  // base64 PNG for design element texture (optional)
   verticalPosition?: number;  // 0–100: placement along back panel (0=spine, 100=top edge)
+  backPanelOffset?:  number;  // 0–5: distance along back panel surface to move back tab
 }
 
 export function buildVFold(params: VFoldParams): THREE.Group {
@@ -74,13 +75,21 @@ export function buildVFold(params: VFoldParams): THREE.Group {
   // Top edge of back arm (world):
   const backTopY = h_back * Math.cos(OPEN_ANGLE);
   const backTopZ = h_back * Math.sin(OPEN_ANGLE);
+  
+  // Move along back panel surface (perpendicular to panel normal) to keep coplanar
+  // Decompose offset into y and z components that preserve panel coplanarity
+  const backPanelOffset = params.backPanelOffset ?? 0;
+  const backOffsetY = 2 * Math.cos(OPEN_ANGLE);
+  const backOffsetZ = 2 * Math.sin(OPEN_ANGLE);
 
-  const BL = new THREE.Vector3(-tabW / 2, 0,        0       );
-  const BR = new THREE.Vector3( tabW / 2, 0,        0       );
-  const TR = new THREE.Vector3( tabW / 2, backTopY, -backTopZ);
-  const TL = new THREE.Vector3(-tabW / 2, backTopY, -backTopZ);
+  const downOffset = -2;
 
+  const BL = new THREE.Vector3(-tabW / 2 , 0 + backOffsetY + downOffset,        0 + backOffsetZ - downOffset       );
+  const BR = new THREE.Vector3( tabW / 2, 0 + backOffsetY + downOffset,        0 + backOffsetZ - downOffset       );
+  const TR = new THREE.Vector3( tabW / 2, backTopY + backOffsetY + downOffset, -backTopZ + backOffsetZ - downOffset);
+  const TL = new THREE.Vector3(-tabW / 2, backTopY + backOffsetY + downOffset, -backTopZ + backOffsetZ - downOffset);
   const backTab = makeQuad(BL, BR, TR, TL, paperMat.clone());
+  
   backTab.receiveShadow = true;
   group.add(backTab);
   group.add(edgeLines(backTab));
@@ -90,9 +99,10 @@ export function buildVFold(params: VFoldParams): THREE.Group {
   const frontTopY = h_front * Math.cos(OPEN_ANGLE);
   const frontTopZ = -h_front * Math.sin(OPEN_ANGLE);
 
-  const FL = new THREE.Vector3(-tabW / 2, 0,         0       );
+  
+  const FL = new THREE.Vector3(-tabW / 2 , 0,         0       );
   const FR = new THREE.Vector3( tabW / 2, 0,         0       );
-  const FTR = new THREE.Vector3( tabW / 2, frontTopY, -frontTopZ);
+  const FTR = new THREE.Vector3( tabW / 2, frontTopY , -frontTopZ);
   const FTL = new THREE.Vector3(-tabW / 2, frontTopY, -frontTopZ);
 
   const frontTab = makeQuad(FL, FR, FTR, FTL, paperMat.clone());
@@ -107,10 +117,10 @@ export function buildVFold(params: VFoldParams): THREE.Group {
   const elemH = Math.max(0.2, backTopY * 0.95);
   const elemW = tabW * 0.88;
   const t = (params.depth / 100) * PANEL_TOP_Z;
+  const verticalOffset = -0.5;  // adjust this value
 
   const elemGeo = new THREE.PlaneGeometry(elemW, elemH);
-  // shift bottom edge to y = 0.05 (just above spine)
-  elemGeo.translate(0, elemH / 2 + 0.05, 0);
+  elemGeo.translate(0, elemH / 2 + 0.05 + verticalOffset, 0);  // Add offset here
 
   let elemMat: THREE.Material;
 
@@ -131,7 +141,7 @@ export function buildVFold(params: VFoldParams): THREE.Group {
   }
 
   const elemMesh = new THREE.Mesh(elemGeo, elemMat);
-  elemMesh.position.set(0, t, t);
+  elemMesh.position.set(0, t + verticalOffset * Math.cos(OPEN_ANGLE), t + verticalOffset * Math.sin(OPEN_ANGLE));
   elemMesh.rotation.x = -OPEN_ANGLE;
   group.add(elemMesh);
 
