@@ -387,28 +387,6 @@ export function LayerEditor() {
                 <div className="space-y-2" onClick={e => e.stopPropagation()}>
                   <div>
                     <Label className="text-xs text-gray-500 flex justify-between">
-                      <span>Element Depth (forward)</span>
-                      <span className="font-medium text-gray-700">{layer.depth}%</span>
-                    </Label>
-                    <Slider value={[layer.depth]} onValueChange={([v]) => updateLayer(layer.id, { depth: v })} min={5} max={100} step={5} className="mt-1" />
-                    <div className="flex justify-between text-[10px] text-gray-400 mt-0.5">
-                      <span>spine</span><span>front edge</span>
-                    </div>
-                  </div>
-
-                  <div>
-                    <Label className="text-xs text-gray-500 flex justify-between">
-                      <span>Vertical Position (up/down)</span>
-                      <span className="font-medium text-gray-700">{layer.verticalPosition}%</span>
-                    </Label>
-                    <Slider value={[layer.verticalPosition]} onValueChange={([v]) => updateLayer(layer.id, { verticalPosition: v })} min={0} max={100} step={5} className="mt-1" />
-                    <div className="flex justify-between text-[10px] text-gray-400 mt-0.5">
-                      <span>bottom</span><span>top</span>
-                    </div>
-                  </div>
-
-                  <div>
-                    <Label className="text-xs text-gray-500 flex justify-between">
                       <span>Element Height (size)</span>
                       <span className="font-medium text-gray-700">{layer.height}%</span>
                     </Label>

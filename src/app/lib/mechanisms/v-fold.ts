@@ -159,12 +159,12 @@ export function buildVFold(params: VFoldParams): THREE.Group {
   elemEdges.rotation.x = -OPEN_ANGLE;
   group.add(elemEdges);
 
-  // ── Vertical position: shift whole group along front-panel direction ─────────
-  // After cardGroup rotation this becomes world-up, so this is an up/down shift.
-  const vp = params.verticalPosition ?? 50;
-  const vpOffset = (vp / 100) * CARD_H * 0.80;
-  group.position.y =  vpOffset * cosA;
-  group.position.z = -vpOffset * sinA;
+  // ── Anchor wall bottom to the back panel ────────────────────────────────────
+  // The wall hangs down by h_wall from the base. To keep its bottom touching
+  // the back panel (world y=0), we lift the group by h_wall in the front-panel
+  // local direction (0, cosA, -sinA), which maps to world-up after cardGroup rotation.
+  group.position.y =  h_wall * cosA;
+  group.position.z = -h_wall * sinA;
 
   return group;
 }
