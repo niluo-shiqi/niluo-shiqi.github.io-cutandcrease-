@@ -1,6 +1,6 @@
 import { useNavigate, useSearchParams } from 'react-router';
 import { useEffect, useRef, useCallback, useState } from 'react';
-import { Layers, Trash2, Plus, Square, Box, Lock } from 'lucide-react';
+import { Layers, Trash2, Plus, Square, Box, Lock, Maximize2 } from 'lucide-react';
 import { Button } from './ui/button';
 import { Card } from './ui/card';
 import { Slider } from './ui/slider';
@@ -310,8 +310,33 @@ export function LayerEditor() {
           </Card>
         </section>
 
-        {/* ── Layers strip ── */}
-        <section>
+        {/* ── 3D Preview + Layers side by side ── */}
+        <section className="flex gap-6 items-start">
+
+          {/* Left: square 3D preview */}
+          <div className="flex-shrink-0 w-[45%]">
+            <div className="flex items-center gap-3 mb-3">
+              <Box className="w-5 h-5 text-blue-600" />
+              <h2 className="text-xl font-semibold text-gray-900">3D Preview</h2>
+              <span className="text-sm text-gray-500">Updates live as you adjust sliders</span>
+            </div>
+            <div className="aspect-square relative">
+              <Card3DViewer layers={layers3D} mechanism={mechanism} height="100%" />
+              <button
+                onClick={() => navigate('/create/preview')}
+                className="absolute top-3 right-3 z-10 bg-black/40 hover:bg-black/60 text-white rounded-lg p-2 transition-colors"
+                title="Full screen preview"
+              >
+                <Maximize2 className="w-4 h-4" />
+              </button>
+            </div>
+            <p className="text-xs text-gray-400 mt-2.5 text-center">
+              Drag to orbit · Scroll to zoom · Right-drag to pan
+            </p>
+          </div>
+
+          {/* Right: layers */}
+          <div className="flex-1 min-w-0">
           <div className="flex items-center justify-between mb-3">
             <h2 className="text-xl font-semibold text-gray-900 flex items-center gap-2">
               <Layers className="w-5 h-5 text-blue-600" />
@@ -457,26 +482,12 @@ export function LayerEditor() {
               <span className="text-xs font-medium">Add Layer</span>
             </button>
           </div>
-        </section>
+          </div>{/* end layers column */}
 
-        {/* ── 3D Preview ── */}
-        <section>
-          <div className="flex items-center gap-3 mb-3">
-            <Box className="w-5 h-5 text-blue-600" />
-            <h2 className="text-xl font-semibold text-gray-900">3D Preview</h2>
-            <span className="text-sm text-gray-500">Card opened at 90° — updates live as you adjust sliders</span>
-          </div>
-          <Card3DViewer layers={layers3D} mechanism={mechanism} />
-          <p className="text-xs text-gray-400 mt-2.5 text-center">
-            Drag to orbit · Scroll to zoom · Right-drag to pan
-          </p>
-        </section>
+        </section>{/* end side-by-side section */}
 
         {/* ── Actions ── */}
-        <div className="flex items-center justify-between pb-8">
-          <Button variant="outline" onClick={() => navigate('/create/preview')}>
-            Full Preview
-          </Button>
+        <div className="flex justify-end pb-8">
           <Button size="lg" className="px-16 text-base" onClick={() => navigate('/create/export')}>
             Generate Final Card
           </Button>

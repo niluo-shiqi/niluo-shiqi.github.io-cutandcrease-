@@ -11,13 +11,15 @@ export function Preview3DPage() {
 
   const layers3D: PopupLayer3D[] = layers.map(l => ({
     id: l.id, depth: l.depth, color: l.color, width: l.width, height: l.height,
-    imageData: l.imageData,
+    imageData: l.imageData, verticalPosition: l.verticalPosition,
+    tabWidth: l.tabWidth, tabHeight: l.tabHeight, tabDepth: l.tabDepth,
+    horizontalPosition: l.horizontalPosition,
   }));
 
   return (
-    <div className="min-h-[calc(100vh-3.5rem)] bg-gray-900 flex flex-col">
+    <div className="h-[calc(100vh-3.5rem)] bg-gray-900 flex flex-col">
       {/* Toolbar */}
-      <div className="flex items-center justify-between px-6 py-4 bg-gray-800 border-b border-gray-700">
+      <div className="flex items-center justify-between px-6 py-4 bg-gray-800 border-b border-gray-700 flex-shrink-0">
         <Button variant="ghost" onClick={() => navigate('/create/editor')} className="text-gray-300 hover:text-white hover:bg-gray-700">
           <ArrowLeft className="w-4 h-4 mr-2" />
           Back to Editor
@@ -32,13 +34,8 @@ export function Preview3DPage() {
       </div>
 
       {/* Full-height 3D viewer */}
-      <div className="flex-1 p-6">
-        <div className="w-full h-full min-h-[600px] rounded-2xl overflow-hidden">
-          <Card3DViewer layers={layers3D} mechanism={mechanism} />
-        </div>
-        <p className="text-center text-gray-500 text-xs mt-4">
-          Drag to orbit · Scroll to zoom · Right-drag to pan
-        </p>
+      <div className="flex-1" style={{ minHeight: 0 }}>
+        <Card3DViewer layers={layers3D} mechanism={mechanism} height="100%" />
       </div>
     </div>
   );

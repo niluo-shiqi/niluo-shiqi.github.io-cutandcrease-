@@ -21,6 +21,7 @@ interface Card3DViewerProps {
   layers:     PopupLayer3D[];
   cardColor?: string;
   mechanism?: string;  // future: 'v-fold' | 'basic-tab' | …
+  height?:    number | string;
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -144,7 +145,7 @@ function rebuildLayers(group: THREE.Group, layers: PopupLayer3D[]) {
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export function Card3DViewer({ layers, cardColor = '#fef9ef' }: Card3DViewerProps) {
+export function Card3DViewer({ layers, cardColor = '#fef9ef', height = 400 }: Card3DViewerProps) {
   const mountRef      = useRef<HTMLDivElement>(null);
   const sceneRef      = useRef<THREE.Scene | null>(null);
   const cardGroupRef  = useRef<THREE.Group | null>(null);
@@ -256,7 +257,7 @@ export function Card3DViewer({ layers, cardColor = '#fef9ef' }: Card3DViewerProp
   return (
     <div
       className="relative rounded-xl overflow-hidden border border-gray-300 shadow-inner bg-gray-200"
-      style={{ height: 400 }}
+      style={{ height }}
     >
       <div ref={mountRef} className="w-full h-full" />
 
