@@ -1,11 +1,12 @@
 import { useState, useRef } from 'react';
 import { useNavigate } from 'react-router';
-import { motion } from 'motion/react';
 import { ArrowLeft, Download, Printer, Image as ImageIcon } from 'lucide-react';
 import { Button } from './ui/button';
 import { Card } from './ui/card';
 import { Label } from './ui/label';
 import { Input } from './ui/input';
+import { Card3DViewer } from './Card3DViewer';
+import type { PopupLayer3D } from './Card3DViewer';
 import { useCardDesign } from '../context/CardDesignContext';
 import type { Layer, CardData } from '../types';
 
@@ -469,82 +470,23 @@ async function renderInsidePageToPng(
   return canvas.toDataURL('image/png');
 }
 
-// ─── 2D animated preview ──────────────────────────────────────────────────────
-
-function CardPreview2D({
-  layers,
-  cardData,
-  isOpen,
-}: {
-  layers: Layer[];
-  cardData: CardData;
-  isOpen: boolean;
-}) {
-  return (
-    <div className="relative w-full max-w-sm mx-auto aspect-[4/3]" style={{ perspective: 900 }}>
-      <motion.div
-        className="absolute inset-0 rounded-lg shadow-xl flex items-end justify-center pb-4"
-        style={{
-          backgroundColor: cardData.background,
-          transformOrigin: '50% 100%',
-          transformStyle: 'preserve-3d',
-          backfaceVisibility: 'hidden',
-        }}
-        animate={{ rotateX: isOpen ? -45 : 0 }}
-        transition={{ duration: 0.6, ease: 'easeInOut' }}
-      >
-        <span className="text-xs text-gray-400 select-none">Back panel</span>
-      </motion.div>
-
-      <motion.div
-        className="absolute inset-0 rounded-lg shadow-xl flex flex-col items-center justify-center gap-2 overflow-hidden"
-        style={{
-          backgroundColor: cardData.background,
-          transformOrigin: '50% 0%',
-          transformStyle: 'preserve-3d',
-        }}
-        animate={{ rotateX: isOpen ? 45 : 0 }}
-        transition={{ duration: 0.6, ease: 'easeInOut' }}
-      >
-        <p className="text-2xl font-serif font-bold" style={{ color: cardData.foreground }}>
-          {cardData.text}
-        </p>
-        <p className="text-sm opacity-70" style={{ color: cardData.foreground }}>
-          {cardData.subtext}
-        </p>
-        {isOpen && (
-          <div className="flex gap-1 mt-2">
-            {layers.map((l, i) => (
-              <motion.div
-                key={l.id}
-                className="rounded-sm shadow"
-                style={{
-                  backgroundColor: l.color,
-                  width: `${(l.width / 100) * 60}px`,
-                  height: `${(l.height / 100) * 40}px`,
-                  opacity: l.opacity / 100,
-                }}
-                initial={{ scaleY: 0, originY: 1 }}
-                animate={{ scaleY: 1 }}
-                transition={{ delay: i * 0.08, duration: 0.35, ease: 'easeOut' }}
-              />
-            ))}
-          </div>
-        )}
-      </motion.div>
-    </div>
-  );
-}
-
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export function CardFinalization() {
   const navigate                          = useNavigate();
   const { layers, cardData, setCardData } = useCardDesign();
-  const [isOpen, setIsOpen]               = useState(false);
+  const [isOpen, setIsOpen]               = useState(true);   // start open so the preview shows immediately
   const svgRef                            = useRef<HTMLDivElement>(null);
 
   const update = (patch: Partial<CardData>) => setCardData({ ...cardData, ...patch });
+
+  // Map Layer[] → PopupLayer3D[] (same shape, just the subset Card3DViewer expects)
+  const layers3D: PopupLayer3D[] = layers.map(l => ({
+    id: l.id, depth: l.depth, color: l.color, width: l.width, height: l.height,
+    imageData: l.imageData, verticalPosition: l.verticalPosition,
+    tabWidth: l.tabWidth, tabHeight: l.tabHeight, tabDepth: l.tabDepth,
+    horizontalPosition: l.horizontalPosition,
+  }));
 
   // ── Download SVG (two files) ────────────────────────────────────────────
   const downloadSvg = async () => {
@@ -622,15 +564,25 @@ export function CardFinalization() {
         </Button>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
-          {/* Left: animated preview */}
+          {/* Left: 3D preview — reuses the same viewer as the editor */}
           <div className="space-y-4">
             <h2 className="text-xl font-semibold text-gray-900">Card Preview</h2>
-            <CardPreview2D layers={layers} cardData={cardData} isOpen={isOpen} />
+            {/* aspect-[4/3] wrapper so the canvas has a stable size */}
+            <div className="aspect-[4/3] w-full">
+              <Card3DViewer
+                layers={layers3D}
+                cardColor={cardData.background}
+                cameraPreset="preview"
+                isOpen={isOpen}
+                showTabs={false}
+                height="100%"
+              />
+            </div>
             <Button className="w-full" variant="outline" onClick={() => setIsOpen(o => !o)}>
               {isOpen ? 'Close Card' : 'Open Card'}
             </Button>
             <p className="text-xs text-gray-400 text-center">
-              Click to see the pop-up card open and close
+              Same 3D model as the editor · no construction tabs
             </p>
           </div>
 

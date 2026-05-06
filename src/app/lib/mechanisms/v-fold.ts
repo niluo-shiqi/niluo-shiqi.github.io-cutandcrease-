@@ -151,8 +151,11 @@ export function buildVFold(params: VFoldParams): THREE.Group {
 
   const base = makeQuad(BL, BR, BTR, BTL, paperMat.clone());
   base.receiveShadow = true;
+  base.userData.isTab = true;
+  const baseEdge = edgeLines(base);
+  baseEdge.userData.isTab = true;
   group.add(base);
-  group.add(edgeLines(base));
+  group.add(baseEdge);
 
   // ── Vertical wall ───────────────────────────────────────────────────────────
   // Hangs DOWN from the far edge of the base, opposite to the front-panel direction.
@@ -167,8 +170,11 @@ export function buildVFold(params: VFoldParams): THREE.Group {
 
   const wall = makeQuad(WTL, WTR, WBR, WBL, paperMat.clone());
   wall.receiveShadow = true;
+  wall.userData.isTab = true;
+  const wallEdge = edgeLines(wall);
+  wallEdge.userData.isTab = true;
   group.add(wall);
-  group.add(edgeLines(wall));
+  group.add(wallEdge);
 
   // ── Design element ──────────────────────────────────────────────────────────
   // Coplanar with the wall (same plane: normal = back-panel direction = world-Z toward viewer).
@@ -197,6 +203,7 @@ export function buildVFold(params: VFoldParams): THREE.Group {
   const elemMesh = new THREE.Mesh(elemGeo, elemMat);
   elemMesh.position.copy(elemPos);
   elemMesh.rotation.x = -OPEN_ANGLE;
+  elemMesh.userData.isElement = true;
   group.add(elemMesh);
 
   const elemEdges = new THREE.LineSegments(
@@ -205,6 +212,7 @@ export function buildVFold(params: VFoldParams): THREE.Group {
   );
   elemEdges.position.copy(elemPos);
   elemEdges.rotation.x = -OPEN_ANGLE;
+  elemEdges.userData.isElement = true;
   group.add(elemEdges);
 
   // ── Anchor wall bottom to the back panel ────────────────────────────────────
