@@ -219,7 +219,12 @@ export function LayerEditor() {
   // ── Layer CRUD ────────────────────────────────────────────────────────────
 
   const updateLayer = (id: number, updates: Partial<Layer>) =>
-    setLayers(layers.map(l => (l.id === id ? { ...l, ...updates } : l)));
+    setLayers(layers.map(l => {
+      if (l.id !== id) return l;
+      // Mark the colour as user-edited so the 3D viewer applies the hue tint.
+      const patch = 'color' in updates ? { ...updates, colorEdited: true } : updates;
+      return { ...l, ...patch };
+    }));
 
   const deleteLayer = (id: number) => {
     if (layers.length === 1) return;
@@ -251,10 +256,10 @@ export function LayerEditor() {
   // ── 3D data ───────────────────────────────────────────────────────────────
 
   const layers3D: PopupLayer3D[] = layers.map(l => ({
-    id: l.id, depth: l.depth, color: l.color, width: l.width, height: l.height,
-    imageData: l.imageData, verticalPosition: l.verticalPosition,
-    tabWidth: l.tabWidth, tabHeight: l.tabHeight, tabDepth: l.tabDepth,
-    horizontalPosition: l.horizontalPosition,
+    id: l.id, depth: l.depth, color: l.color, colorEdited: l.colorEdited,
+    width: l.width, height: l.height, imageData: l.imageData,
+    verticalPosition: l.verticalPosition, tabWidth: l.tabWidth,
+    tabHeight: l.tabHeight, tabDepth: l.tabDepth, horizontalPosition: l.horizontalPosition,
   }));
 
   // ── Render ────────────────────────────────────────────────────────────────

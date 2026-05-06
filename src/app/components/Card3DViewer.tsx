@@ -10,6 +10,7 @@ export interface PopupLayer3D {
   width:            number;   // 0–100
   height:           number;   // 0–100
   imageData?:       string;   // base64 PNG for design element texture
+  colorEdited?:     boolean;  // when false/absent the image renders at its original colours
   verticalPosition?: number;  // 0–100
   tabWidth?:            number;   // 0–100
   tabHeight?:           number;   // 0–100
@@ -154,6 +155,7 @@ function rebuildLayers(group: THREE.Group, layers: PopupLayer3D[], showTabs: boo
       height:           layer.height,
       depth:            layer.depth,
       color:            layer.color,
+      colorEdited:      layer.colorEdited,
       imageData:        layer.imageData,
       verticalPosition: layer.verticalPosition,
       tabWidth:            layer.tabWidth,

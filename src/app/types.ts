@@ -48,6 +48,7 @@ export interface Layer {
   tabDepth: number;         // 0–100
   horizontalPosition: number; // 0–100: left/right position of the whole tab (50 = centre)
   color: string;            // hex
+  colorEdited?: boolean;    // true only after the user explicitly changes the color
   selected: boolean;
   imageData?: string;       // base64 PNG of clipped canvas region
   path?: { x: number; y: number }[];

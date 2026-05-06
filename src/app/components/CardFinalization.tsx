@@ -482,10 +482,10 @@ export function CardFinalization() {
 
   // Map Layer[] → PopupLayer3D[] (same shape, just the subset Card3DViewer expects)
   const layers3D: PopupLayer3D[] = layers.map(l => ({
-    id: l.id, depth: l.depth, color: l.color, width: l.width, height: l.height,
-    imageData: l.imageData, verticalPosition: l.verticalPosition,
-    tabWidth: l.tabWidth, tabHeight: l.tabHeight, tabDepth: l.tabDepth,
-    horizontalPosition: l.horizontalPosition,
+    id: l.id, depth: l.depth, color: l.color, colorEdited: l.colorEdited,
+    width: l.width, height: l.height, imageData: l.imageData,
+    verticalPosition: l.verticalPosition, tabWidth: l.tabWidth,
+    tabHeight: l.tabHeight, tabDepth: l.tabDepth, horizontalPosition: l.horizontalPosition,
   }));
 
   // ── Download SVG (two files) ────────────────────────────────────────────

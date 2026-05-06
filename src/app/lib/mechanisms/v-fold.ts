@@ -113,6 +113,7 @@ export interface VFoldParams {
   height:            number;  // 0–100: design element height
   depth:             number;  // 0–100: (reserved — element is pinned to wall)
   color:             string;
+  colorEdited?:      boolean; // when false/absent, image is shown at its original colours
   imageData?:        string;
   verticalPosition?: number;  // 0–100: shift whole tab up/down along card
   tabWidth?:            number;  // 0–100: tab width, default 50
@@ -190,9 +191,20 @@ export function buildVFold(params: VFoldParams): THREE.Group {
   if (params.imageData) {
     const texture = new THREE.TextureLoader().load(params.imageData);
     texture.colorSpace = THREE.SRGBColorSpace;
-    const hsl = { h: 0, s: 0, l: 0 };
-    safeColor(params.color).getHSL(hsl);
-    elemMat = makeHueMaterial(texture, hsl.h);
+    if (params.colorEdited) {
+      // User explicitly chose a colour — shift the image hue to match.
+      const hsl = { h: 0, s: 0, l: 0 };
+      safeColor(params.color).getHSL(hsl);
+      elemMat = makeHueMaterial(texture, hsl.h);
+    } else {
+      // No explicit colour choice — render the image at its original colours.
+      elemMat = new THREE.MeshLambertMaterial({
+        map: texture,
+        transparent: true,
+        side: THREE.DoubleSide,
+        alphaTest: 0.05,
+      });
+    }
   } else {
     elemMat = new THREE.MeshLambertMaterial({ color: safeColor(params.color), side: THREE.DoubleSide });
   }
