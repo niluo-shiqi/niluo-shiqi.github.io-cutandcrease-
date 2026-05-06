@@ -489,7 +489,7 @@ export function LayerEditor() {
         {/* ── Actions ── */}
         <div className="flex justify-end pb-8">
           <Button size="lg" className="px-16 text-base" onClick={() => navigate('/create/export')}>
-            Generate Final Card
+            Next
           </Button>
         </div>
       </main>
