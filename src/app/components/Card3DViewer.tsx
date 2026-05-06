@@ -11,9 +11,10 @@ export interface PopupLayer3D {
   height:           number;   // 0–100
   imageData?:       string;   // base64 PNG for design element texture
   verticalPosition?: number;  // 0–100
-  tabWidth?:        number;   // 0–100
-  tabHeight?:       number;   // 0–100
-  tabDepth?:        number;   // 0–100
+  tabWidth?:            number;   // 0–100
+  tabHeight?:           number;   // 0–100
+  tabDepth?:            number;   // 0–100
+  horizontalPosition?:  number;   // 0–100
 }
 
 interface Card3DViewerProps {
@@ -127,15 +128,15 @@ function rebuildLayers(group: THREE.Group, layers: PopupLayer3D[]) {
       color:            layer.color,
       imageData:        layer.imageData,
       verticalPosition: layer.verticalPosition,
-      tabWidth:         layer.tabWidth,
-      tabHeight:        layer.tabHeight,
-      tabDepth:         layer.tabDepth,
+      tabWidth:            layer.tabWidth,
+      tabHeight:           layer.tabHeight,
+      tabDepth:            layer.tabDepth,
+      horizontalPosition:  layer.horizontalPosition,
     });
 
-    // Offset successive layers slightly along x so they don't perfectly overlap
-    // (index not available here so we rely on the group.children count before adding)
-    const offsetX = (group.children.length % 3 - 1) * 0.15;
-    vfoldGroup.position.x = offsetX;
+    // Add a tiny stagger so successive layers don't perfectly overlap.
+    // Use += so the horizontalPosition set inside buildVFold is preserved.
+    vfoldGroup.position.x += (group.children.length % 3 - 1) * 0.15;
 
     group.add(vfoldGroup);
   });

@@ -29,6 +29,7 @@ export function DesignVariantPicker() {
       tabWidth: 50,
       tabHeight: 50,
       tabDepth: 50,
+      horizontalPosition: 50,
       color: '#6366f1',
       selected: true,
       imageData: variant.src,

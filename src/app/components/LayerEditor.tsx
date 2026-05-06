@@ -183,6 +183,7 @@ export function LayerEditor() {
         tabWidth: 50,
         tabHeight: 50,
         tabDepth: 50,
+        horizontalPosition: 50,
         color: `#${Math.floor(Math.random() * 0xffffff).toString(16).padStart(6, '0')}`,
         selected: true,
         path: [...currentPath],
@@ -220,6 +221,7 @@ export function LayerEditor() {
       tabWidth: 50,
       tabHeight: 50,
       tabDepth: 50,
+      horizontalPosition: 50,
       color: `#${Math.floor(Math.random() * 0xffffff).toString(16).padStart(6, '0')}`,
       selected: false,
     }]);
@@ -231,6 +233,7 @@ export function LayerEditor() {
     id: l.id, depth: l.depth, color: l.color, width: l.width, height: l.height,
     imageData: l.imageData, verticalPosition: l.verticalPosition,
     tabWidth: l.tabWidth, tabHeight: l.tabHeight, tabDepth: l.tabDepth,
+    horizontalPosition: l.horizontalPosition,
   }));
 
   // ── Render ────────────────────────────────────────────────────────────────
@@ -426,6 +429,17 @@ export function LayerEditor() {
                       <span className="font-medium text-gray-700">{layer.tabDepth}%</span>
                     </Label>
                     <Slider value={[layer.tabDepth]} onValueChange={([v]) => updateLayer(layer.id, { tabDepth: v })} min={0} max={100} step={5} className="mt-1" />
+                  </div>
+
+                  <div>
+                    <Label className="text-xs text-gray-500 flex justify-between">
+                      <span>Horizontal Position</span>
+                      <span className="font-medium text-gray-700">{layer.horizontalPosition}%</span>
+                    </Label>
+                    <Slider value={[layer.horizontalPosition]} onValueChange={([v]) => updateLayer(layer.id, { horizontalPosition: v })} min={0} max={100} step={5} className="mt-1" />
+                    <div className="flex justify-between text-[10px] text-gray-400 mt-0.5">
+                      <span>left</span><span>right</span>
+                    </div>
                   </div>
                 </div>
 

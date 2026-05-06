@@ -46,6 +46,7 @@ export interface Layer {
   tabWidth: number;         // 0–100
   tabHeight: number;        // 0–100
   tabDepth: number;         // 0–100
+  horizontalPosition: number; // 0–100: left/right position of the whole tab (50 = centre)
   color: string;            // hex
   selected: boolean;
   imageData?: string;       // base64 PNG of clipped canvas region

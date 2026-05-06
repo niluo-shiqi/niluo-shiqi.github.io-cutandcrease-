@@ -65,9 +65,10 @@ export interface VFoldParams {
   color:             string;
   imageData?:        string;
   verticalPosition?: number;  // 0–100: shift whole tab up/down along card
-  tabWidth?:         number;  // 0–100: tab width, default 50
-  tabHeight?:        number;  // 0–100: vertical wall height, default 50
-  tabDepth?:         number;  // 0–100: horizontal base depth, default 50
+  tabWidth?:            number;  // 0–100: tab width, default 50
+  tabHeight?:           number;  // 0–100: vertical wall height, default 50
+  tabDepth?:            number;  // 0–100: horizontal base depth, default 50
+  horizontalPosition?:  number;  // 0–100: left/right offset (50 = centre), default 50
 }
 
 export function buildVFold(params: VFoldParams): THREE.Group {
@@ -160,11 +161,14 @@ export function buildVFold(params: VFoldParams): THREE.Group {
   group.add(elemEdges);
 
   // ── Anchor wall bottom to the back panel ────────────────────────────────────
-  // The wall hangs down by h_wall from the base. To keep its bottom touching
-  // the back panel (world y=0), we lift the group by h_wall in the front-panel
-  // local direction (0, cosA, -sinA), which maps to world-up after cardGroup rotation.
+  // Lift the group so the hanging wall bottom stays at world y=0 (back panel).
   group.position.y =  h_wall * cosA;
   group.position.z = -h_wall * sinA;
+
+  // ── Horizontal position: slide left/right along card X axis ─────────────────
+  // 50% = centre (x=0), 0% = left edge (x=-CARD_W/2), 100% = right edge (x=+CARD_W/2).
+  const hp = params.horizontalPosition ?? 50;
+  group.position.x = ((hp / 100) - 0.5) * CARD_W;
 
   return group;
 }
