@@ -105,6 +105,10 @@ export function CardDesignProvider({ children }: { children: React.ReactNode }) 
 
   const handleImageUpload = useCallback(async (url: string) => {
     setUploadedImage(url);
+    setDesignElement(null);
+    // Replace layers with a single fresh layer that carries the new image so
+    // the editor & 3D preview always reflect the most recently uploaded image.
+    setLayers([{ ...DEFAULT_LAYER, imageData: url }]);
     setIsAnalyzing(true);
     try {
       setAnalysisData(await analyzeImage(url));

@@ -5,7 +5,8 @@ import { AnalysisResults } from './AnalysisResults';
 
 export function UploadPage() {
   const navigate = useNavigate();
-  const { uploadedImage, analysisData, isAnalyzing, handleImageUpload, setUploadedImage, setAnalysisData, setIsAnalyzing } = useCardDesign();
+  const { uploadedImage, handleImageUpload, setUploadedImage, setAnalysisData, setIsAnalyzing } =
+    useCardDesign();
 
   const handleRemoveImage = () => {
     setUploadedImage(null);
@@ -21,8 +22,6 @@ export function UploadPage() {
         ) : (
           <AnalysisResults
             imageUrl={uploadedImage}
-            analysisData={analysisData}
-            isAnalyzing={isAnalyzing}
             onRemoveImage={handleRemoveImage}
             onProceed={() => navigate('/create/editor')}
           />
