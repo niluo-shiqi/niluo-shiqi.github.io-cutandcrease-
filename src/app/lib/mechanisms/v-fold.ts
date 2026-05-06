@@ -18,6 +18,56 @@ function safeColor(hex: string): THREE.Color {
   return c;
 }
 
+// Replaces the hue of every texture pixel (HSL space) with targetHue (0–1).
+// Saturation and lightness from the original image are preserved.
+function makeHueMaterial(texture: THREE.Texture, targetHue: number): THREE.MeshLambertMaterial {
+  const mat = new THREE.MeshLambertMaterial({
+    map: texture,
+    transparent: true,
+    side: THREE.DoubleSide,
+    alphaTest: 0.05,
+  });
+
+  mat.customProgramCacheKey = () => `hue-${targetHue.toFixed(4)}`;
+
+  mat.onBeforeCompile = (shader) => {
+    shader.uniforms.targetHue = { value: targetHue };
+
+    shader.fragmentShader = `
+uniform float targetHue;
+
+float _h2rgb(float p, float q, float t) {
+  if (t < 0.0) t += 1.0;
+  if (t > 1.0) t -= 1.0;
+  if (t < 1.0/6.0) return p + (q - p) * 6.0 * t;
+  if (t < 0.5)     return q;
+  if (t < 2.0/3.0) return p + (q - p) * (2.0/3.0 - t) * 6.0;
+  return p;
+}
+
+vec3 replaceHue(vec3 col, float h) {
+  float maxC = max(col.r, max(col.g, col.b));
+  float minC = min(col.r, min(col.g, col.b));
+  float l = (maxC + minC) * 0.5;
+  if (maxC == minC) return vec3(l);           // achromatic — leave as-is
+  float d = maxC - minC;
+  float s = l > 0.5 ? d / (2.0 - maxC - minC) : d / (maxC + minC);
+  float q = l < 0.5 ? l * (1.0 + s) : l + s - l * s;
+  float p = 2.0 * l - q;
+  return vec3(_h2rgb(p, q, h + 1.0/3.0), _h2rgb(p, q, h), _h2rgb(p, q, h - 1.0/3.0));
+}
+` + shader.fragmentShader;
+
+    shader.fragmentShader = shader.fragmentShader.replace(
+      '#include <map_fragment>',
+      `#include <map_fragment>
+diffuseColor.rgb = replaceHue(diffuseColor.rgb, targetHue);`,
+    );
+  };
+
+  return mat;
+}
+
 function makeQuad(
   a: THREE.Vector3,
   b: THREE.Vector3,
@@ -134,12 +184,9 @@ export function buildVFold(params: VFoldParams): THREE.Group {
   if (params.imageData) {
     const texture = new THREE.TextureLoader().load(params.imageData);
     texture.colorSpace = THREE.SRGBColorSpace;
-    elemMat = new THREE.MeshLambertMaterial({
-      map: texture,
-      transparent: true,
-      side: THREE.DoubleSide,
-      alphaTest: 0.05,
-    });
+    const hsl = { h: 0, s: 0, l: 0 };
+    safeColor(params.color).getHSL(hsl);
+    elemMat = makeHueMaterial(texture, hsl.h);
   } else {
     elemMat = new THREE.MeshLambertMaterial({ color: safeColor(params.color), side: THREE.DoubleSide });
   }
