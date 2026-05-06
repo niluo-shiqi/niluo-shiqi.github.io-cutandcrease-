@@ -25,7 +25,6 @@ function makeQuad(
   d: THREE.Vector3,
   mat: THREE.Material,
 ): THREE.Mesh {
-  // Two triangles: a-b-c and a-c-d
   const positions = new Float32Array([
     a.x, a.y, a.z,  b.x, b.y, b.z,  c.x, c.y, c.z,
     a.x, a.y, a.z,  c.x, c.y, c.z,  d.x, d.y, d.z,
@@ -43,87 +42,94 @@ function edgeLines(mesh: THREE.Mesh): THREE.LineSegments {
   );
 }
 
-// ─── V-fold builder ───────────────────────────────────────────────────────────
+// ─── Basic-tab builder ────────────────────────────────────────────────────────
+//
+// Cross-section (viewed along X, world space after cardGroup rotation):
+//
+//   wall (vertical)
+//   │  ← element pasted here
+//   │
+//   └──────────── base (flat on back panel)
+//   spine
+//
+// tabDepth  → length of horizontal base (how far from spine)
+// tabHeight → height of vertical wall
+// tabWidth  → width along X
+//
+// Element: coplanar with the wall, bottom edge touching the wall's bottom edge.
 
 export interface VFoldParams {
-  width:             number;  // 0–100: element width as % of card width
-  height:            number;  // 0–100: element height (size)
-  depth:             number;  // 0–100: element depth (forward position)
-  color:             string;  // hex colour for the design element
-  imageData?:        string;  // base64 PNG for design element texture (optional)
-  verticalPosition?: number;  // 0–100: placement along back panel (0=spine, 100=top edge)
-  backPanelOffset?:  number;  // 0–5: distance along back panel surface to move back tab
+  width:             number;  // 0–100: design element width
+  height:            number;  // 0–100: design element height
+  depth:             number;  // 0–100: (reserved — element is pinned to wall)
+  color:             string;
+  imageData?:        string;
+  verticalPosition?: number;  // 0–100: shift whole tab up/down along card
+  tabWidth?:         number;  // 0–100: tab width, default 50
+  tabHeight?:        number;  // 0–100: vertical wall height, default 50
+  tabDepth?:         number;  // 0–100: horizontal base depth, default 50
 }
 
 export function buildVFold(params: VFoldParams): THREE.Group {
   const group = new THREE.Group();
 
-  const tabW    = Math.max(0.5, (params.width  / 100) * CARD_W * 0.75);
-  // h_back: distance along the back panel from spine
-  const h_back  = Math.max(0.3, (params.height / 100) * CARD_H * 0.80);
-  // h_front: distance along the front panel from spine (controlled by depth)
-  const h_front = Math.max(0.3, (params.depth  / 100) * CARD_H * 0.80);
+  const cosA = Math.cos(OPEN_ANGLE);
+  const sinA = Math.sin(OPEN_ANGLE);
 
-  // ── Paper material ──────────────────────────────────────────────────────────
-  const paperMat = new THREE.MeshLambertMaterial({
-    color: PAPER_HEX,
-    side: THREE.DoubleSide,
-  });
+  // ── Tab dimensions ─────────────────────────────────────────────────────────
+  const tabW   = Math.max(0.5, ((params.tabWidth  ?? 50) / 100) * CARD_W * 0.75);
+  const h_base = Math.max(0.3, ((params.tabDepth  ?? 50) / 100) * CARD_H * 0.50);
+  const h_wall = Math.max(0.3, ((params.tabHeight ?? 50) / 100) * CARD_H * 0.80);
 
-  // ── Back tab arm: coplanar with back card panel ────────────────────────────
-  // Back panel dir from spine: (0, cos(45°), sin(45°)) = (0, 0.707, 0.707)
-  // Top edge of back arm (world):
-  const backTopY = h_back * Math.cos(OPEN_ANGLE);
-  const backTopZ = h_back * Math.sin(OPEN_ANGLE);
-  
-  // Move along back panel surface (perpendicular to panel normal) to keep coplanar
-  // Decompose offset into y and z components that preserve panel coplanarity
-  const backPanelOffset = params.backPanelOffset ?? 0;
-  const backOffsetY = 2 * Math.cos(OPEN_ANGLE);
-  const backOffsetZ = 2 * Math.sin(OPEN_ANGLE);
+  // ── Element dimensions ─────────────────────────────────────────────────────
+  const elemW = Math.max(0.5, (params.width  / 100) * CARD_W * 0.75);
+  const elemH = Math.max(0.2, (params.height / 100) * CARD_H * 0.80);
 
-  const downOffset = -2;
+  const paperMat = new THREE.MeshLambertMaterial({ color: PAPER_HEX, side: THREE.DoubleSide });
 
-  const BL = new THREE.Vector3(-tabW / 2 , 0 + backOffsetY + downOffset,        0 + backOffsetZ - downOffset       );
-  const BR = new THREE.Vector3( tabW / 2, 0 + backOffsetY + downOffset,        0 + backOffsetZ - downOffset       );
-  const TR = new THREE.Vector3( tabW / 2, backTopY + backOffsetY + downOffset, -backTopZ + backOffsetZ - downOffset);
-  const TL = new THREE.Vector3(-tabW / 2, backTopY + backOffsetY + downOffset, -backTopZ + backOffsetZ - downOffset);
-  const backTab = makeQuad(BL, BR, TR, TL, paperMat.clone());
-  
-  backTab.receiveShadow = true;
-  group.add(backTab);
-  group.add(edgeLines(backTab));
+  // ── Horizontal base ─────────────────────────────────────────────────────────
+  // Lies flat on the back panel. Back-panel local direction: (0, cosA, +sinA).
+  // In world space after cardGroup rotation: (0, 0, 1) — flat on the ground.
+  const baseTopY = h_base * cosA;
+  const baseTopZ = h_base * sinA;
 
-  // ── Front tab arm: coplanar with front card panel ──────────────────────────
-  // Front panel dir from spine: (0, cos(45°), -sin(45°)) = (0, 0.707, -0.707)
-  const frontTopY = h_front * Math.cos(OPEN_ANGLE);
-  const frontTopZ = -h_front * Math.sin(OPEN_ANGLE);
+  const BL  = new THREE.Vector3(-tabW / 2, 0,        0       );
+  const BR  = new THREE.Vector3( tabW / 2, 0,        0       );
+  const BTR = new THREE.Vector3( tabW / 2, baseTopY, baseTopZ);
+  const BTL = new THREE.Vector3(-tabW / 2, baseTopY, baseTopZ);
 
-  
-  const FL = new THREE.Vector3(-tabW / 2 , 0,         0       );
-  const FR = new THREE.Vector3( tabW / 2, 0,         0       );
-  const FTR = new THREE.Vector3( tabW / 2, frontTopY , -frontTopZ);
-  const FTL = new THREE.Vector3(-tabW / 2, frontTopY, -frontTopZ);
+  const base = makeQuad(BL, BR, BTR, BTL, paperMat.clone());
+  base.receiveShadow = true;
+  group.add(base);
+  group.add(edgeLines(base));
 
-  const frontTab = makeQuad(FL, FR, FTR, FTL, paperMat.clone());
-  frontTab.receiveShadow = true;
-  group.add(frontTab);
-  group.add(edgeLines(frontTab));
+  // ── Vertical wall ───────────────────────────────────────────────────────────
+  // Hangs DOWN from the far edge of the base, opposite to the front-panel direction.
+  // Local direction: (0, -cosA, +sinA) → world -Y (downward). Cross-section = step-down.
+  const wallBotY = baseTopY - h_wall * cosA;
+  const wallBotZ = baseTopZ + h_wall * sinA;
 
-  // ── Design element ─────────────────────────────────────────────────────────
-  // Slides along world Z (parallel to the flat back panel).
-  // local position (0, t, t) gives world_y=0, world_z=t·√2 for OPEN_ANGLE=π/4.
-  // depth 0 → spine (world Z=0), depth 100 → far edge of back panel (world Z=CARD_H).
-  const elemH = Math.max(0.2, backTopY * 0.95);
-  const elemW = tabW * 0.88;
-  const t = (params.depth / 100) * PANEL_TOP_Z;
-  const verticalOffset = -0.5;  // adjust this value
+  const WTL = new THREE.Vector3(-tabW / 2, baseTopY, baseTopZ);
+  const WTR = new THREE.Vector3( tabW / 2, baseTopY, baseTopZ);
+  const WBR = new THREE.Vector3( tabW / 2, wallBotY, wallBotZ);
+  const WBL = new THREE.Vector3(-tabW / 2, wallBotY, wallBotZ);
 
+  const wall = makeQuad(WTL, WTR, WBR, WBL, paperMat.clone());
+  wall.receiveShadow = true;
+  group.add(wall);
+  group.add(edgeLines(wall));
+
+  // ── Design element ──────────────────────────────────────────────────────────
+  // Coplanar with the wall (same plane: normal = back-panel direction = world-Z toward viewer).
+  // rotation.x = -OPEN_ANGLE; local +Y = world-up, local -Y = world-down.
+  // elemGeo.translate(0, -elemH/2, 0) anchors the TOP of the element at the local origin
+  // so the element hangs downward from the base edge, matching the wall direction.
+  // Tiny ε nudge in -normal direction (toward viewer) avoids z-fighting with the wall.
+  const ε = -0.01;
   const elemGeo = new THREE.PlaneGeometry(elemW, elemH);
-  elemGeo.translate(0, elemH / 2 + 0.05 + verticalOffset, 0);  // Add offset here
+  elemGeo.translate(0, -elemH / 2, 0);
 
   let elemMat: THREE.Material;
-
   if (params.imageData) {
     const texture = new THREE.TextureLoader().load(params.imageData);
     texture.colorSpace = THREE.SRGBColorSpace;
@@ -134,33 +140,31 @@ export function buildVFold(params: VFoldParams): THREE.Group {
       alphaTest: 0.05,
     });
   } else {
-    elemMat = new THREE.MeshLambertMaterial({
-      color: safeColor(params.color),
-      side: THREE.DoubleSide,
-    });
+    elemMat = new THREE.MeshLambertMaterial({ color: safeColor(params.color), side: THREE.DoubleSide });
   }
 
+  // Wall normal in local space: (0, sinA, cosA) — nudge element in the opposite direction
+  const elemPos = new THREE.Vector3(0, baseTopY - ε * sinA, baseTopZ - ε * cosA);
+
   const elemMesh = new THREE.Mesh(elemGeo, elemMat);
-  elemMesh.position.set(0, t + verticalOffset * Math.cos(OPEN_ANGLE), t + verticalOffset * Math.sin(OPEN_ANGLE));
+  elemMesh.position.copy(elemPos);
   elemMesh.rotation.x = -OPEN_ANGLE;
   group.add(elemMesh);
 
-  // Thin dark outline around design element for legibility
   const elemEdges = new THREE.LineSegments(
     new THREE.EdgesGeometry(elemGeo),
     new THREE.LineBasicMaterial({ color: 0x444444 }),
   );
-  elemEdges.position.set(0, t, t);
+  elemEdges.position.copy(elemPos);
   elemEdges.rotation.x = -OPEN_ANGLE;
   group.add(elemEdges);
 
-  // Offset the whole group along the front panel's local surface direction (spine→top of front panel).
-  // After cardGroup is rotated to lay the back panel flat, this direction is world-up,
-  // so verticalPosition moves the element vertically in the viewer.
+  // ── Vertical position: shift whole group along front-panel direction ─────────
+  // After cardGroup rotation this becomes world-up, so this is an up/down shift.
   const vp = params.verticalPosition ?? 50;
   const vpOffset = (vp / 100) * CARD_H * 0.80;
-  group.position.y =  vpOffset * Math.cos(OPEN_ANGLE);
-  group.position.z = -vpOffset * Math.sin(OPEN_ANGLE);
+  group.position.y =  vpOffset * cosA;
+  group.position.z = -vpOffset * sinA;
 
   return group;
 }

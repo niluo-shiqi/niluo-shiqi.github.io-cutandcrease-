@@ -19,6 +19,9 @@ const DEFAULT_LAYER: Layer = {
   width: 70,
   opacity: 100,
   verticalPosition: 50,
+  tabWidth: 50,
+  tabHeight: 50,
+  tabDepth: 50,
   color: '#6366f1',
   selected: false,
 };

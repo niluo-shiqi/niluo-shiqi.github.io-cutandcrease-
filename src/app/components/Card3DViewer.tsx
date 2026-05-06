@@ -10,7 +10,10 @@ export interface PopupLayer3D {
   width:            number;   // 0–100
   height:           number;   // 0–100
   imageData?:       string;   // base64 PNG for design element texture
-  verticalPosition?: number;  // 0–100: position along back panel surface
+  verticalPosition?: number;  // 0–100
+  tabWidth?:        number;   // 0–100
+  tabHeight?:       number;   // 0–100
+  tabDepth?:        number;   // 0–100
 }
 
 interface Card3DViewerProps {
@@ -124,6 +127,9 @@ function rebuildLayers(group: THREE.Group, layers: PopupLayer3D[]) {
       color:            layer.color,
       imageData:        layer.imageData,
       verticalPosition: layer.verticalPosition,
+      tabWidth:         layer.tabWidth,
+      tabHeight:        layer.tabHeight,
+      tabDepth:         layer.tabDepth,
     });
 
     // Offset successive layers slightly along x so they don't perfectly overlap

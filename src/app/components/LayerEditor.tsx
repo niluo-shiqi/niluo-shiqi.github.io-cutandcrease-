@@ -180,6 +180,9 @@ export function LayerEditor() {
         width:  55,
         opacity: 100,
         verticalPosition: 50,
+        tabWidth: 50,
+        tabHeight: 50,
+        tabDepth: 50,
         color: `#${Math.floor(Math.random() * 0xffffff).toString(16).padStart(6, '0')}`,
         selected: true,
         path: [...currentPath],
@@ -214,6 +217,9 @@ export function LayerEditor() {
       width:  50,
       opacity: 100,
       verticalPosition: 50,
+      tabWidth: 50,
+      tabHeight: 50,
+      tabDepth: 50,
       color: `#${Math.floor(Math.random() * 0xffffff).toString(16).padStart(6, '0')}`,
       selected: false,
     }]);
@@ -224,6 +230,7 @@ export function LayerEditor() {
   const layers3D: PopupLayer3D[] = layers.map(l => ({
     id: l.id, depth: l.depth, color: l.color, width: l.width, height: l.height,
     imageData: l.imageData, verticalPosition: l.verticalPosition,
+    tabWidth: l.tabWidth, tabHeight: l.tabHeight, tabDepth: l.tabDepth,
   }));
 
   // ── Render ────────────────────────────────────────────────────────────────
@@ -414,6 +421,33 @@ export function LayerEditor() {
                       <span className="font-medium text-gray-700">{layer.width}%</span>
                     </Label>
                     <Slider value={[layer.width]} onValueChange={([v]) => updateLayer(layer.id, { width: v })} min={5} max={100} step={5} className="mt-1" />
+                  </div>
+
+                  <div className="border-t my-2" />
+                  <div className="text-xs font-semibold text-gray-700">Tab</div>
+
+                  <div>
+                    <Label className="text-xs text-gray-500 flex justify-between">
+                      <span>Tab Width</span>
+                      <span className="font-medium text-gray-700">{layer.tabWidth}%</span>
+                    </Label>
+                    <Slider value={[layer.tabWidth]} onValueChange={([v]) => updateLayer(layer.id, { tabWidth: v })} min={0} max={100} step={5} className="mt-1" />
+                  </div>
+
+                  <div>
+                    <Label className="text-xs text-gray-500 flex justify-between">
+                      <span>Tab Height</span>
+                      <span className="font-medium text-gray-700">{layer.tabHeight}%</span>
+                    </Label>
+                    <Slider value={[layer.tabHeight]} onValueChange={([v]) => updateLayer(layer.id, { tabHeight: v })} min={0} max={100} step={5} className="mt-1" />
+                  </div>
+
+                  <div>
+                    <Label className="text-xs text-gray-500 flex justify-between">
+                      <span>Tab Depth</span>
+                      <span className="font-medium text-gray-700">{layer.tabDepth}%</span>
+                    </Label>
+                    <Slider value={[layer.tabDepth]} onValueChange={([v]) => updateLayer(layer.id, { tabDepth: v })} min={0} max={100} step={5} className="mt-1" />
                   </div>
                 </div>
 

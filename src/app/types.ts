@@ -43,6 +43,9 @@ export interface Layer {
   width: number;            // 0–100: element width (size)
   opacity: number;          // 0–100 (retained in type, not rendered as control)
   verticalPosition: number; // 0–100: position along back panel (0=bottom/spine, 100=top)
+  tabWidth: number;         // 0–100
+  tabHeight: number;        // 0–100
+  tabDepth: number;         // 0–100
   color: string;            // hex
   selected: boolean;
   imageData?: string;       // base64 PNG of clipped canvas region
