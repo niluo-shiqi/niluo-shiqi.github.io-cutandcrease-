@@ -246,15 +246,16 @@ export function Card3DViewer({
     }
 
     // ── Camera ──────────────────────────────────────────────────────────────
-    const camera = new THREE.PerspectiveCamera(isPreview ? 32 : 40, 1, 0.1, 100);
+    const camera = new THREE.PerspectiveCamera(isPreview ? 30 : 40, 1, 0.1, 100);
 
     if (isPreview) {
       // Face-on: look straight at the front panel.
       // When fully open, the front panel is a vertical plane at z = 0 in world space,
-      // spanning x ∈ [-CARD_W/2, CARD_W/2] and y ∈ [0, CARD_H].
-      // We position the camera along +Z looking toward the origin.
-      camera.position.set(0, CARD_H * 0.55, 12);
-      camera.lookAt(0, CARD_H * 0.4, 0);
+      // spanning x ∈ [-CARD_W/2, CARD_W/2] = [-4, 4] and y ∈ [0, CARD_H] = [0, 5].
+      // At FOV=30° and aspect≈1 the half-width that fits at distance D is D·tan(15°)≈0.268·D.
+      // To fit CARD_W/2=4 with ~25% padding we need D ≥ 4/0.268·1.25 ≈ 19 → use 18.
+      camera.position.set(0, CARD_H * 0.5, 18);
+      camera.lookAt(0, CARD_H * 0.45, 0);
     } else {
       // Editor: angled view that shows the L-shaped open card
       camera.position.set(5, 8, 10);
@@ -268,19 +269,26 @@ export function Card3DViewer({
     renderer.shadowMap.type    = THREE.PCFSoftShadowMap;
     el.appendChild(renderer.domElement);
 
-    // ── OrbitControls (editor only) ──────────────────────────────────────────
-    let controls: OrbitControls | null = null;
-    if (!isPreview) {
-      controls = new OrbitControls(camera, renderer.domElement);
+    // ── OrbitControls ────────────────────────────────────────────────────────
+    // Enabled in both editor and preview modes.
+    // Preview uses a tighter distance range and keeps the target centred on the card.
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.07;
+    if (isPreview) {
+      controls.target.set(0, CARD_H * 0.45, 0);
+      controls.minDistance    = 8;
+      controls.maxDistance    = 30;
+      controls.minPolarAngle  = 0.1;
+      controls.maxPolarAngle  = Math.PI * 0.75;
+    } else {
       controls.target.set(0, 2, 2);
-      controls.enableDamping  = true;
-      controls.dampingFactor  = 0.07;
       controls.minDistance    = 4;
       controls.maxDistance    = 30;
       controls.minPolarAngle  = 0.05;
       controls.maxPolarAngle  = Math.PI * 0.72;
-      controls.update();
     }
+    controls.update();
 
     // ── Card group ────────────────────────────────────────────────────────────
     // cardGroup.rotation.x positions the overall card orientation.
@@ -385,20 +393,19 @@ export function Card3DViewer({
     >
       <div ref={mountRef} className="w-full h-full" />
 
-      {/* Editor mode: show hint labels */}
+      {/* Orbit hint — shown in both modes */}
+      <div className="absolute bottom-2.5 right-3 pointer-events-none select-none">
+        <span className="text-xs bg-black/40 text-white px-2.5 py-1 rounded-full">
+          Drag · Scroll · Right-drag
+        </span>
+      </div>
+      {/* Editor-only label */}
       {!isPreview && (
-        <>
-          <div className="absolute bottom-2.5 right-3 pointer-events-none select-none">
-            <span className="text-xs bg-black/40 text-white px-2.5 py-1 rounded-full">
-              Drag · Scroll · Right-drag
-            </span>
-          </div>
-          <div className="absolute bottom-2.5 left-3 pointer-events-none select-none">
-            <span className="text-xs bg-black/40 text-white px-2.5 py-1 rounded-full">
-              90° opening · V-fold
-            </span>
-          </div>
-        </>
+        <div className="absolute bottom-2.5 left-3 pointer-events-none select-none">
+          <span className="text-xs bg-black/40 text-white px-2.5 py-1 rounded-full">
+            90° opening · V-fold
+          </span>
+        </div>
       )}
     </div>
   );
