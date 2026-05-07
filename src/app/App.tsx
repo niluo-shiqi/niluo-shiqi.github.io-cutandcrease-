@@ -1,4 +1,4 @@
-import { Routes, Route } from 'react-router';
+import { Routes, Route, Navigate } from 'react-router';
 import { Toaster } from 'sonner';
 import { CardDesignProvider } from './context/CardDesignContext';
 import { TopNav } from './components/TopNav';
@@ -31,6 +31,7 @@ export default function App() {
           <Route path="/create/preview"            element={<Preview3DPage />} />
           <Route path="/create/export"             element={<CardFinalization />} />
           <Route path="/my-cards"                  element={<SavedCardsList />} />
+          <Route path="*"                          element={<Navigate to="/" replace />} />
         </Routes>
         <Toaster richColors position="bottom-right" />
       </div>
