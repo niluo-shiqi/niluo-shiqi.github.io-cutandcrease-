@@ -8,7 +8,7 @@ import type { Layer } from '../types';
 export function DesignVariantPicker() {
   const { themeId }     = useParams<{ themeId: string }>();
   const navigate        = useNavigate();
-  const { setLayers, setDesignElement } = useCardDesign();
+  const { layers, setLayers, setDesignElement } = useCardDesign();
 
   const theme = ELEMENT_THEMES.find(t => t.id === themeId);
   if (!theme) return <div className="p-8 text-gray-500">Theme not found.</div>;
@@ -17,9 +17,10 @@ export function DesignVariantPicker() {
     const variant = theme.variants[variantIndex];
     setDesignElement(variant);
 
-    // Pre-populate a single layer using this variant's image as imageData
+    // Add new layer on top of existing ones (deselect all previous)
+    const newId = layers.length > 0 ? Math.max(...layers.map(l => l.id)) + 1 : 1;
     const layer: Layer = {
-      id: 1,
+      id: newId,
       name: `${theme.label} — ${variant.label}`,
       depth: 50,
       height: 65,
@@ -34,7 +35,7 @@ export function DesignVariantPicker() {
       selected: true,
       imageData: variant.src,
     };
-    setLayers([layer]);
+    setLayers([...layers.map(l => ({ ...l, selected: false })), layer]);
 
     navigate('/create/editor');
   };
@@ -53,7 +54,7 @@ export function DesignVariantPicker() {
           </div>
           <div>
             <h1 className="text-3xl font-serif text-gray-900">{theme.label}</h1>
-            <p className="text-gray-500 mt-0.5">Click a variant to open it in the editor</p>
+            <p className="text-gray-500 mt-0.5">Click a variant to add it as a new layer</p>
           </div>
         </div>
 

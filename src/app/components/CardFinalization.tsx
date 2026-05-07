@@ -584,6 +584,9 @@ export function CardFinalization() {
             <Button className="w-full" variant="outline" onClick={() => setIsOpen(o => !o)}>
               {isOpen ? 'Close Card' : 'Open Card'}
             </Button>
+
+
+
             <p className="text-xs text-gray-400 text-center">
               Same 3D model as the editor · no construction tabs
             </p>

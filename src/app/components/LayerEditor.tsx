@@ -1,6 +1,6 @@
 import { useNavigate, useSearchParams } from 'react-router';
 import { useEffect, useRef, useCallback, useState } from 'react';
-import { Layers, Trash2, Plus, Square, Box, Lock, Maximize2 } from 'lucide-react';
+import { Layers, Trash2, Plus, Square, Box, Lock, Maximize2, TriangleAlert } from 'lucide-react';
 import { Button } from './ui/button';
 import { Card } from './ui/card';
 import { Slider } from './ui/slider';
@@ -10,6 +10,46 @@ import { Card3DViewer } from './Card3DViewer';
 import type { PopupLayer3D } from './Card3DViewer';
 import { useCardDesign } from '../context/CardDesignContext';
 import type { Layer, Mechanism } from '../types';
+
+// ─── Card dimensions (must match v-fold.ts / CardFinalization) ────────────────
+const CW = 8; // CARD_W
+
+// ─── Collision detection ──────────────────────────────────────────────────────
+
+interface CollisionWarning { type: 'overlap' | 'out-of-bounds'; message: string }
+
+function detectCollisions(layers: Layer[]): CollisionWarning[] {
+  const warnings: CollisionWarning[] = [];
+  const halfCard = CW / 2;
+
+  const ranges = layers.map(l => {
+    const cx = ((l.horizontalPosition ?? 50) / 100 - 0.5) * CW;
+    const hw = Math.max(0.5, ((l.tabWidth ?? 50) / 100) * CW * 0.75) / 2;
+    return { name: l.name, left: cx - hw, right: cx + hw };
+  });
+
+  ranges.forEach(r => {
+    if (r.left < -halfCard || r.right > halfCard) {
+      warnings.push({
+        type: 'out-of-bounds',
+        message: `"${r.name}" extends beyond the card edge — reduce tab width or adjust position.`,
+      });
+    }
+  });
+
+  for (let i = 0; i < ranges.length; i++) {
+    for (let j = i + 1; j < ranges.length; j++) {
+      const a = ranges[i], b = ranges[j];
+      if (a.left < b.right && b.left < a.right) {
+        warnings.push({
+          type: 'overlap',
+          message: `"${a.name}" and "${b.name}" overlap — they may collide when the card opens.`,
+        });
+      }
+    }
+  }
+  return warnings;
+}
 
 // ─── Mechanism tiles ──────────────────────────────────────────────────────────
 
@@ -261,6 +301,7 @@ export function LayerEditor() {
     verticalPosition: l.verticalPosition, tabWidth: l.tabWidth,
     tabHeight: l.tabHeight, tabDepth: l.tabDepth, horizontalPosition: l.horizontalPosition,
   }));
+  const collisionWarnings = detectCollisions(layers);
 
   // ── Render ────────────────────────────────────────────────────────────────
 
@@ -359,6 +400,24 @@ export function LayerEditor() {
             <p className="text-xs text-gray-400 mt-2.5 text-center">
               Drag to orbit · Scroll to zoom · Right-drag to pan
             </p>
+
+            {/* Collision warnings */}
+            {collisionWarnings.length > 0 && (
+              <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3 space-y-2">
+                <div className="flex items-center gap-2 text-amber-700 font-medium text-sm">
+                  <TriangleAlert className="w-4 h-4 flex-shrink-0" />
+                  {collisionWarnings.length === 1 ? '1 potential issue' : `${collisionWarnings.length} potential issues`}
+                </div>
+                <ul className="space-y-1">
+                  {collisionWarnings.map((w, i) => (
+                    <li key={i} className="text-xs text-amber-700 flex items-start gap-1.5">
+                      <span className="mt-0.5 flex-shrink-0">{w.type === 'overlap' ? '⚠' : '↔'}</span>
+                      {w.message}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
           </div>
 
           {/* Right: layers */}
