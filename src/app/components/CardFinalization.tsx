@@ -172,28 +172,41 @@ function generateInsidePage(layers: Layer[], rasterImages: (string | null)[]): s
     const eh = Math.max(0.2, (layer.height / 100) * CH * 0.80) * SC;
 
     const tabTH = hb + hw;
+    const gf    = tabTH * 0.15;            // glue-flap height at each end (15%)
+    const newTH = tabTH + 2 * gf;         // total tab height including flaps (130%)
     const tabX  = curX;
     const tabY  = piecesY;
 
-    // TAB PIECE
+    // Vertical positions of the three interior fold lines
+    const y1 = tabY + gf;                 // bottom of top glue flap
+    const y2 = tabY + gf + hb;           // bottom of base / top of wall
+    const y3 = tabY + gf + hb + hw;      // bottom of wall / top of bottom glue flap
+
+    // TAB PIECE — outer rect + three fold lines
     s += `
 <!-- L${i + 1} TAB PIECE — "${layer.name}" -->
 <text x="${fp(tabX + tw / 2)}" y="${fp(tabY - 2)}"
       text-anchor="middle" ${T(3, '#333333', 'bold')}>TAB — ${escapeXml(layer.name)}</text>
-<rect x="${fp(tabX)}" y="${fp(tabY)}" width="${fp(tw)}" height="${fp(tabTH)}" ${CUT}/>
-<line x1="${fp(tabX)}" y1="${fp(tabY + hb)}" x2="${fp(tabX + tw)}" y2="${fp(tabY + hb)}" ${FOLD}/>
+<rect x="${fp(tabX)}" y="${fp(tabY)}" width="${fp(tw)}" height="${fp(newTH)}" ${CUT}/>
+<line x1="${fp(tabX)}" y1="${fp(y1)}" x2="${fp(tabX + tw)}" y2="${fp(y1)}" ${FOLD}/>
+<line x1="${fp(tabX)}" y1="${fp(y2)}" x2="${fp(tabX + tw)}" y2="${fp(y2)}" ${FOLD}/>
+<line x1="${fp(tabX)}" y1="${fp(y3)}" x2="${fp(tabX + tw)}" y2="${fp(y3)}" ${FOLD}/>
+<text x="${fp(tabX + tw / 2)}" y="${fp(tabY + gf / 2)}"
+      text-anchor="middle" dominant-baseline="middle" ${T(2.5, '#888888')}>glue</text>
+<text x="${fp(tabX + tw / 2)}" y="${fp(y3 + gf / 2)}"
+      text-anchor="middle" dominant-baseline="middle" ${T(2.5, '#888888')}>glue</text>
 `;
     if (hb > 7) {
-      s += `<text x="${fp(tabX + tw / 2)}" y="${fp(tabY + hb / 2 - 1.5)}"
+      s += `<text x="${fp(tabX + tw / 2)}" y="${fp(y1 + hb / 2 - 1.5)}"
       text-anchor="middle" ${T(2.8, '#555555')}>BASE</text>
-<text x="${fp(tabX + tw / 2)}" y="${fp(tabY + hb / 2 + 2.5)}"
+<text x="${fp(tabX + tw / 2)}" y="${fp(y1 + hb / 2 + 2.5)}"
       text-anchor="middle" ${T(2.2, '#999999')}>glue to back panel</text>
 `;
     }
     if (hw > 7) {
-      s += `<text x="${fp(tabX + tw / 2)}" y="${fp(tabY + hb + hw / 2 - 1.5)}"
+      s += `<text x="${fp(tabX + tw / 2)}" y="${fp(y2 + hw / 2 - 1.5)}"
       text-anchor="middle" ${T(2.8, '#555555')}>WALL</text>
-<text x="${fp(tabX + tw / 2)}" y="${fp(tabY + hb + hw / 2 + 2.5)}"
+<text x="${fp(tabX + tw / 2)}" y="${fp(y2 + hw / 2 + 2.5)}"
       text-anchor="middle" ${T(2.2, '#999999')}>attach element</text>
 `;
     }
