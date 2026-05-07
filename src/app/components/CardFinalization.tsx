@@ -475,7 +475,7 @@ async function renderInsidePageToPng(
 export function CardFinalization() {
   const navigate                          = useNavigate();
   const { layers, cardData, setCardData } = useCardDesign();
-  const [isOpen, setIsOpen]               = useState(true);   // start open so the preview shows immediately
+  const [isOpen, setIsOpen]               = useState(false);  // start closed — cover shows first
   const svgRef                            = useRef<HTMLDivElement>(null);
 
   const update = (patch: Partial<CardData>) => setCardData({ ...cardData, ...patch });
@@ -572,6 +572,9 @@ export function CardFinalization() {
               <Card3DViewer
                 layers={layers3D}
                 cardColor={cardData.background}
+                cardForeground={cardData.foreground}
+                cardText={cardData.text}
+                cardSubtext={cardData.subtext}
                 cameraPreset="preview"
                 isOpen={isOpen}
                 showTabs={false}

@@ -1,41 +1,47 @@
+'use client';
+
 import { useEffect, useRef } from 'react';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { buildVFold, CARD_W, CARD_H, OPEN_ANGLE, PANEL_TOP_Y, PANEL_TOP_Z } from '../lib/mechanisms/v-fold';
 
+// ─── Public types ─────────────────────────────────────────────────────────────
+
 export interface PopupLayer3D {
-  id:               number;
-  depth:            number;   // 0–100
-  color:            string;   // hex
-  width:            number;   // 0–100
-  height:           number;   // 0–100
-  imageData?:       string;   // base64 PNG for design element texture
-  colorEdited?:     boolean;  // when false/absent the image renders at its original colours
-  verticalPosition?: number;  // 0–100
-  tabWidth?:            number;   // 0–100
-  tabHeight?:           number;   // 0–100
-  tabDepth?:            number;   // 0–100
-  horizontalPosition?:  number;   // 0–100
+  id:                  number;
+  depth:               number;   // 0–100
+  color:               string;   // hex
+  width:               number;   // 0–100
+  height:              number;   // 0–100
+  imageData?:          string;   // base64 PNG
+  colorEdited?:        boolean;
+  verticalPosition?:   number;   // 0–100
+  tabWidth?:           number;   // 0–100
+  tabHeight?:          number;   // 0–100
+  tabDepth?:           number;   // 0–100
+  horizontalPosition?: number;   // 0–100
 }
 
 interface Card3DViewerProps {
-  layers:     PopupLayer3D[];
-  cardColor?: string;
-  mechanism?: string;  // future: 'v-fold' | 'basic-tab' | …
-  height?:    number | string;
+  layers:          PopupLayer3D[];
+  cardColor?:      string;
+  mechanism?:      string;   // reserved
+  height?:         number | string;
 
-  // ── Preview-mode props ────────────────────────────────────────────────────
-  // cameraPreset:
-  //   'editor'  (default) – angled camera + OrbitControls, always open
-  //   'preview' – face-on camera, no orbit, animated open/close
+  // Text shown on the card panels
+  cardText?:       string;   // main greeting
+  cardSubtext?:    string;   // secondary line
+  cardForeground?: string;   // text colour (hex)
+
+  // 'editor'  → always-open angled camera, tab geometry visible, no toggle
+  // 'preview' → two-state (closed / open), face-on camera
   cameraPreset?: 'editor' | 'preview';
 
-  // isOpen: only used when cameraPreset='preview'.
-  //   true  → animate card to fully open (90°)
-  //   false → animate card to fully closed (flat)
+  // Controls which state is shown in preview mode.
+  // Ignored in editor mode.
   isOpen?: boolean;
 
-  // showTabs: when false, hide the construction tab geometry (base + wall).
+  // Whether to render the construction-tab geometry.
   // Defaults to true so the editor view is unchanged.
   showTabs?: boolean;
 }
@@ -50,94 +56,238 @@ function safeColor(hex: string): THREE.Color {
 
 function disposeMesh(obj: THREE.Object3D) {
   const mesh = obj as THREE.Mesh;
-  mesh.geometry?.dispose();
-  if (Array.isArray(mesh.material)) {
-    mesh.material.forEach((m: THREE.Material) => m.dispose());
-  } else {
-    (mesh.material as THREE.Material)?.dispose();
+  if (mesh.geometry) mesh.geometry.dispose();
+  const mat = mesh.material;
+  if (mat) {
+    const mats = Array.isArray(mat) ? mat : [mat as THREE.Material];
+    mats.forEach(m => {
+      (m as THREE.MeshLambertMaterial).map?.dispose();
+      m.dispose();
+    });
   }
 }
 
-// ─── Card panels (two halves) ─────────────────────────────────────────────────
-// Returns refs to the front and back panel meshes so the render loop can
-// update their rotations during the open/close animation.
-
-interface PanelResult {
-  frontPanel: THREE.Mesh;
-  backPanel:  THREE.Mesh;
+// Remove all direct scene children that have a given userData flag set, and
+// dispose every mesh / material / texture inside them.
+function removeByFlag(scene: THREE.Scene, flag: string) {
+  scene.children
+    .filter(o => o.userData[flag])
+    .forEach(o => {
+      o.traverse(child => disposeMesh(child));
+      scene.remove(o);
+    });
 }
 
-function buildCardPanels(
-  cardGroup: THREE.Group,
+// ─── Card-panel texture ───────────────────────────────────────────────────────
+// Draws a plain background fill + centred text onto an off-screen canvas and
+// returns a CanvasTexture.  No horizontal flip or rotation is applied — both
+// the closed cover panel and the open inner panel are FrontSide planes whose
+// face normal points directly at the camera, so the texture renders correctly
+// as-is with no orientation tricks.
+
+function makeCardTexture(
+  bgColor:  string,
+  fgColor:  string,
+  mainText: string,
+  subText:  string,
+): THREE.CanvasTexture {
+  const W = 512;
+  const H = Math.round(W * CARD_H / CARD_W);   // 320 px — 8∶5 aspect
+  const canvas = document.createElement('canvas');
+  canvas.width  = W;
+  canvas.height = H;
+  const ctx = canvas.getContext('2d')!;
+
+  ctx.fillStyle = bgColor;
+  ctx.fillRect(0, 0, W, H);
+
+  const hasMain = mainText.trim().length > 0;
+  const hasSub  = subText.trim().length  > 0;
+
+  ctx.textAlign    = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillStyle    = fgColor;
+
+  if (hasMain) {
+    let sz = Math.round(W * 0.10);
+    ctx.font = `bold ${sz}px Georgia,"Times New Roman",serif`;
+    while (ctx.measureText(mainText).width > W * 0.85 && sz > 12) {
+      sz -= 2;
+      ctx.font = `bold ${sz}px Georgia,"Times New Roman",serif`;
+    }
+    ctx.fillText(mainText, W / 2, hasSub ? H * 0.42 : H / 2);
+  }
+
+  if (hasSub) {
+    let sz = Math.round(W * 0.055);
+    ctx.font = `${sz}px Arial,Helvetica,sans-serif`;
+    while (ctx.measureText(subText).width > W * 0.85 && sz > 10) {
+      sz -= 2;
+      ctx.font = `${sz}px Arial,Helvetica,sans-serif`;
+    }
+    ctx.fillText(subText, W / 2, hasMain ? H * 0.62 : H / 2);
+  }
+
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  return tex;
+}
+
+// ─── CLOSED-STATE card ────────────────────────────────────────────────────────
+//
+// A single vertical flat plane at z = 0, spine at y = 0, top at y = CARD_H.
+// The FrontSide (+Z normal) faces the preview camera directly, so the cover
+// texture renders without any face-orientation ambiguity.
+//
+// There is NO folded geometry, no BackSide, no angle animation — just one
+// rectangle that the camera looks straight at.
+
+function buildClosedCard(
+  scene:       THREE.Scene,
+  cardColor:   string,
+  cardFg:      string,
+  cardText:    string,
+  cardSubtext: string,
+): THREE.Group {
+  removeByFlag(scene, 'closedCard');
+
+  const group = new THREE.Group();
+  group.userData.closedCard = true;
+
+  const makeGeo = () => {
+    const geo = new THREE.PlaneGeometry(CARD_W, CARD_H);
+    geo.translate(0, CARD_H / 2, 0);   // y: 0 (spine) → CARD_H (top)
+    return geo;
+  };
+
+  // ── Front face (cover) — FrontSide, faces camera ────────────────────────
+  const coverMat = new THREE.MeshLambertMaterial({
+    map:  makeCardTexture(cardColor, cardFg || '#1a1a1a', cardText || '', cardSubtext || ''),
+    side: THREE.FrontSide,
+  });
+  const frontFace = new THREE.Mesh(makeGeo(), coverMat);
+  frontFace.receiveShadow = true;
+  group.add(frontFace);
+
+  // ── Back face — plain card colour, prevents see-through from behind ─────
+  const backMat = new THREE.MeshLambertMaterial({
+    color: safeColor(cardColor),
+    side:  THREE.BackSide,
+  });
+  group.add(new THREE.Mesh(makeGeo(), backMat));
+
+  // ── Thin card outline ───────────────────────────────────────────────────
+  const half = CARD_W / 2;
+  const outlinePts = [
+    new THREE.Vector3(-half, 0,       0.005),
+    new THREE.Vector3( half, 0,       0.005),
+    new THREE.Vector3( half, CARD_H,  0.005),
+    new THREE.Vector3(-half, CARD_H,  0.005),
+    new THREE.Vector3(-half, 0,       0.005),
+  ];
+  group.add(new THREE.Line(
+    new THREE.BufferGeometry().setFromPoints(outlinePts),
+    new THREE.LineBasicMaterial({ color: 0xbbbbbb }),
+  ));
+
+  scene.add(group);
+  return group;
+}
+
+// ─── OPEN-STATE card ──────────────────────────────────────────────────────────
+//
+// Standard V-fold two-panel geometry, exactly as used in the layer editor.
+//  • cardGroup.rotation.x = π/2 − OPEN_ANGLE = π/4   (back panel flat on ground)
+//  • frontPanel.rotation.x = −OPEN_ANGLE              (FrontSide → directly at camera)
+//  • backPanel.rotation.x  = +OPEN_ANGLE
+//
+// The front panel carries the inner-page text on its FrontSide face.
+// The cover is shown only in the closed state; no text is placed on BackSide here.
+
+function buildOpenCard(
   scene:     THREE.Scene,
   cardColor: string,
-): PanelResult {
-  // Remove old card-panel objects from the rotated cardGroup
-  cardGroup.children.filter(o => o.userData.cardPart).forEach(o => {
-    disposeMesh(o);
-    cardGroup.remove(o);
-  });
-  // Remove old shadow catcher from scene
-  scene.children.filter(o => o.userData.shadowCatcher).forEach(o => {
-    disposeMesh(o);
-    scene.remove(o);
-  });
+): { group: THREE.Group; layerGroup: THREE.Group } {
+  removeByFlag(scene, 'openCard');
+  removeByFlag(scene, 'openShadow');
 
-  const cardMat = new THREE.MeshLambertMaterial({
-    color: safeColor(cardColor),
-    side: THREE.DoubleSide,
-  });
+  const group = new THREE.Group();
+  group.userData.openCard = true;
+  group.rotation.x = Math.PI / 2 - OPEN_ANGLE;   // π/4 — keeps back panel flat
+  scene.add(group);
 
-  const addPanel = (rotX: number): THREE.Mesh => {
+  const makePlane = (mat: THREE.Material): THREE.Mesh => {
     const geo = new THREE.PlaneGeometry(CARD_W, CARD_H);
     geo.translate(0, CARD_H / 2, 0);
-    const mesh = new THREE.Mesh(geo, cardMat.clone());
-    mesh.rotation.x = rotX;
+    const mesh = new THREE.Mesh(geo, mat);
     mesh.receiveShadow = true;
     mesh.userData.cardPart = true;
-    cardGroup.add(mesh);
     return mesh;
   };
 
-  // front panel: tilts toward viewer (–z) in local space
-  const frontPanel = addPanel(-OPEN_ANGLE);
-  // back panel:  tilts away from viewer (+z) in local space
-  const backPanel  = addPanel(+OPEN_ANGLE);
+  // ── Front panel — inner left page (plain — no cover text here) ──────────
+  // rotation.x = −OPEN_ANGLE in the rotated cardGroup makes FrontSide point
+  // directly toward the preview camera (face normal = world +Z after the
+  // combined group + panel rotations cancel to (0, 0, 1)).
+  // Cover text exists only in the closed state; the inner pages are plain.
+  const frontInner = makePlane(new THREE.MeshLambertMaterial({
+    color: safeColor(cardColor),
+    side:  THREE.FrontSide,   // inner face — single-sided, no bleed-through
+  }));
+  frontInner.rotation.x = -OPEN_ANGLE;
+  group.add(frontInner);
 
-  // Spine crease
-  const spineMesh = new THREE.Mesh(
+  // Outside of front panel — plain colour, single-sided (faces away from camera when open)
+  const frontOuter = makePlane(new THREE.MeshLambertMaterial({
+    color: safeColor(cardColor),
+    side:  THREE.BackSide,
+  }));
+  frontOuter.rotation.x = -OPEN_ANGLE;
+  group.add(frontOuter);
+
+  // ── Back panel ────────────────────────────────────────────────────────────
+  const backPanel = makePlane(new THREE.MeshLambertMaterial({
+    color: safeColor(cardColor),
+    side:  THREE.DoubleSide,
+  }));
+  backPanel.rotation.x = +OPEN_ANGLE;
+  group.add(backPanel);
+
+  // ── Spine crease ──────────────────────────────────────────────────────────
+  const spine = new THREE.Mesh(
     new THREE.CylinderGeometry(0.055, 0.055, CARD_W + 0.3, 10),
     new THREE.MeshLambertMaterial({ color: 0xbbbbbb }),
   );
-  spineMesh.rotation.z       = Math.PI / 2;
-  spineMesh.userData.cardPart = true;
-  cardGroup.add(spineMesh);
+  spine.rotation.z = Math.PI / 2;
+  spine.userData.cardPart = true;
+  group.add(spine);
 
-  // Panel top-edge outlines (in local space of cardGroup)
+  // Panel top-edge outlines
   const edgeMat = new THREE.LineBasicMaterial({ color: 0xcccccc });
-  const addEdge = (z: number) => {
+  [-PANEL_TOP_Z, +PANEL_TOP_Z].forEach(z => {
     const pts = [
       new THREE.Vector3(-CARD_W / 2, PANEL_TOP_Y, z),
       new THREE.Vector3( CARD_W / 2, PANEL_TOP_Y, z),
     ];
-    const line = new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), edgeMat);
-    line.userData.cardPart = true;
-    cardGroup.add(line);
-  };
-  addEdge(-PANEL_TOP_Z);
-  addEdge(+PANEL_TOP_Z);
+    group.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), edgeMat));
+  });
 
-  // Shadow catcher — flat on the ground in world space
-  const shadowGeo  = new THREE.PlaneGeometry(CARD_W + 4, CARD_H + 4);
-  const shadowMat  = new THREE.ShadowMaterial({ opacity: 0.18 });
-  const shadowMesh = new THREE.Mesh(shadowGeo, shadowMat);
-  shadowMesh.rotation.x       = -Math.PI / 2;
-  shadowMesh.position.y       = -0.01;
-  shadowMesh.receiveShadow    = true;
-  shadowMesh.userData.shadowCatcher = true;
-  scene.add(shadowMesh);
+  // ── V-fold popup layer group ──────────────────────────────────────────────
+  const layerGroup = new THREE.Group();
+  group.add(layerGroup);
 
-  return { frontPanel, backPanel };
+  // ── Shadow catcher (world space — must NOT be inside the rotated group) ──
+  const shadowMesh = new THREE.Mesh(
+    new THREE.PlaneGeometry(CARD_W + 4, CARD_H + 4),
+    new THREE.ShadowMaterial({ opacity: 0.18 }),
+  );
+  shadowMesh.rotation.x    = -Math.PI / 2;
+  shadowMesh.position.y    = -0.01;
+  shadowMesh.receiveShadow = true;
+  shadowMesh.userData.openShadow = true;
+  scene.add(shadowMesh);   // direct scene child, not inside the rotated group
+
+  return { group, layerGroup };
 }
 
 // ─── V-fold layer groups ──────────────────────────────────────────────────────
@@ -149,24 +299,23 @@ function rebuildLayers(group: THREE.Group, layers: PopupLayer3D[], showTabs: boo
     group.remove(child);
   }
 
-  layers.forEach(layer => {
+  layers.forEach((layer, idx) => {
     const vfoldGroup = buildVFold({
-      width:            layer.width,
-      height:           layer.height,
-      depth:            layer.depth,
-      color:            layer.color,
-      colorEdited:      layer.colorEdited,
-      imageData:        layer.imageData,
-      verticalPosition: layer.verticalPosition,
-      tabWidth:            layer.tabWidth,
-      tabHeight:           layer.tabHeight,
-      tabDepth:            layer.tabDepth,
-      horizontalPosition:  layer.horizontalPosition,
+      width:              layer.width,
+      height:             layer.height,
+      depth:              layer.depth,
+      color:              layer.color,
+      colorEdited:        layer.colorEdited,
+      imageData:          layer.imageData,
+      verticalPosition:   layer.verticalPosition,
+      tabWidth:           layer.tabWidth,
+      tabHeight:          layer.tabHeight,
+      tabDepth:           layer.tabDepth,
+      horizontalPosition: layer.horizontalPosition,
     });
 
-    vfoldGroup.position.x += (group.children.length % 3 - 1) * 0.15;
+    vfoldGroup.position.x += (idx % 3 - 1) * 0.15;
 
-    // Hide construction tabs when showTabs is false (preview mode)
     if (!showTabs) {
       vfoldGroup.traverse(obj => {
         if (obj.userData.isTab) obj.visible = false;
@@ -181,28 +330,29 @@ function rebuildLayers(group: THREE.Group, layers: PopupLayer3D[], showTabs: boo
 
 export function Card3DViewer({
   layers,
-  cardColor    = '#fef9ef',
-  height       = 400,
-  cameraPreset = 'editor',
+  cardColor      = '#fef9ef',
+  cardText       = '',
+  cardSubtext    = '',
+  cardForeground = '#1a1a1a',
+  height         = 400,
+  cameraPreset   = 'editor',
   isOpen,
-  showTabs     = true,
+  showTabs       = true,
 }: Card3DViewerProps) {
-  const mountRef      = useRef<HTMLDivElement>(null);
-  const sceneRef      = useRef<THREE.Scene | null>(null);
-  const cardGroupRef  = useRef<THREE.Group | null>(null);
-  const layerGroupRef = useRef<THREE.Group | null>(null);
+  const mountRef       = useRef<HTMLDivElement>(null);
+  const sceneRef       = useRef<THREE.Scene | null>(null);
+  const closedGroupRef = useRef<THREE.Group | null>(null);
+  const openGroupRef   = useRef<THREE.Group | null>(null);
+  const layerGroupRef  = useRef<THREE.Group | null>(null);
+  const previewModeRef = useRef(cameraPreset === 'preview');
 
-  // ── Animation refs (updated by effects, read by the render loop) ────────────
-  const frontPanelRef   = useRef<THREE.Mesh | null>(null);
-  const backPanelRef    = useRef<THREE.Mesh | null>(null);
-  // targetAngle: the angle each panel makes with the spine (0 = closed, OPEN_ANGLE = open)
-  const targetAngleRef  = useRef(OPEN_ANGLE);
-  // currentAngle: smoothly interpolated toward targetAngle every frame
-  const currentAngleRef = useRef(OPEN_ANGLE);
-  // Whether we're in preview (animated) mode — set once at mount from cameraPreset prop
-  const previewModeRef  = useRef(cameraPreset === 'preview');
+  // Keep a ref copy of isOpen so the card-data effect can read it without
+  // adding it to the dependency array (which would trigger a full rebuild on
+  // every toggle — we only want to toggle visibility, not rebuild geometry).
+  const isOpenRef = useRef(isOpen ?? false);
+  useEffect(() => { isOpenRef.current = isOpen ?? false; }, [isOpen]);
 
-  // ── Main setup (runs once on mount) ─────────────────────────────────────────
+  // ── Mount: scene, camera, renderer, OrbitControls, render loop ──────────────
   useEffect(() => {
     const el = mountRef.current;
     if (!el) return;
@@ -210,27 +360,18 @@ export function Card3DViewer({
     const isPreview = cameraPreset === 'preview';
     previewModeRef.current = isPreview;
 
-    // Initialise angle refs from the isOpen prop at mount time
-    const initialAngle = (!isPreview || isOpen !== false) ? OPEN_ANGLE : 0;
-    currentAngleRef.current = initialAngle;
-    targetAngleRef.current  = initialAngle;
-
-    // Scene
+    // Scene ──────────────────────────────────────────────────────────────────
     const scene = new THREE.Scene();
-    if (isPreview) {
-      scene.background = new THREE.Color(0xf0f2f5);  // lighter, cleaner for preview
-    } else {
-      scene.background = new THREE.Color(0xdde2ee);
-      scene.fog = new THREE.FogExp2(0xdde2ee, 0.022);
-    }
+    scene.background = new THREE.Color(isPreview ? 0xf0f2f5 : 0xdde2ee);
+    if (!isPreview) scene.fog = new THREE.FogExp2(0xdde2ee, 0.022);
     sceneRef.current = scene;
 
-    // Lighting
+    // Lighting ───────────────────────────────────────────────────────────────
     scene.add(new THREE.AmbientLight(0xffffff, isPreview ? 0.85 : 0.7));
 
     const keyLight = new THREE.DirectionalLight(0xffffff, 1.0);
     keyLight.position.set(-4, 14, 6);
-    keyLight.castShadow        = true;
+    keyLight.castShadow = true;
     keyLight.shadow.mapSize.set(1024, 1024);
     keyLight.shadow.camera.near = 0.5;
     keyLight.shadow.camera.far  = 50;
@@ -240,40 +381,35 @@ export function Card3DViewer({
     fillLight.position.set(6, 8, -6);
     scene.add(fillLight);
 
-    // Grid floor (only in editor mode)
+    // Grid floor (editor only) ───────────────────────────────────────────────
     if (!isPreview) {
       const grid = new THREE.GridHelper(20, 20, 0xbbbbbb, 0xdddddd);
       grid.position.y = -0.02;
       scene.add(grid);
     }
 
-    // ── Camera ──────────────────────────────────────────────────────────────
+    // Camera ─────────────────────────────────────────────────────────────────
     const camera = new THREE.PerspectiveCamera(isPreview ? 30 : 40, 1, 0.1, 100);
-
     if (isPreview) {
-      // Face-on: look straight at the front panel.
-      // When fully open, the front panel is a vertical plane at z = 0 in world space,
-      // spanning x ∈ [-CARD_W/2, CARD_W/2] = [-4, 4] and y ∈ [0, CARD_H] = [0, 5].
-      // At FOV=30° and aspect≈1 the half-width that fits at distance D is D·tan(15°)≈0.268·D.
-      // To fit CARD_W/2=4 with ~25% padding we need D ≥ 4/0.268·1.25 ≈ 19 → use 18.
+      // Face-on: looks straight at the card panels in both open and closed states.
+      // When open  → front panel stands vertical at z=0 → camera looks directly at it.
+      // When closed → cover plate stands vertical at z=0 → same shot.
       camera.position.set(0, CARD_H * 0.5, 18);
       camera.lookAt(0, CARD_H * 0.45, 0);
     } else {
-      // Editor: angled view that shows the L-shaped open card
+      // Editor: angled view showing the open 90° card from above
       camera.position.set(5, 8, 10);
       camera.lookAt(0, 2, 2);
     }
 
-    // ── Renderer ─────────────────────────────────────────────────────────────
+    // Renderer ───────────────────────────────────────────────────────────────
     const renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type    = THREE.PCFSoftShadowMap;
     el.appendChild(renderer.domElement);
 
-    // ── OrbitControls ────────────────────────────────────────────────────────
-    // Enabled in both editor and preview modes.
-    // Preview uses a tighter distance range and keeps the target centred on the card.
+    // OrbitControls ──────────────────────────────────────────────────────────
     const controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
     controls.dampingFactor = 0.07;
@@ -292,22 +428,7 @@ export function Card3DViewer({
     }
     controls.update();
 
-    // ── Card group ────────────────────────────────────────────────────────────
-    // cardGroup.rotation.x positions the overall card orientation.
-    // Formula: rotation.x = π/2 - currentAngle keeps the back panel flat.
-    //   • currentAngle = OPEN_ANGLE → rotation.x = π/2 - π/4 = OPEN_ANGLE (editor behaviour)
-    //   • currentAngle = 0          → rotation.x = π/2          (both panels flat = closed)
-    const cardGroup = new THREE.Group();
-    cardGroup.rotation.x = Math.PI / 2 - currentAngleRef.current;
-    scene.add(cardGroup);
-    cardGroupRef.current = cardGroup;
-
-    // Layer group lives inside cardGroup
-    const layerGroup = new THREE.Group();
-    cardGroup.add(layerGroup);
-    layerGroupRef.current = layerGroup;
-
-    // ── Render loop ───────────────────────────────────────────────────────────
+    // Render loop ────────────────────────────────────────────────────────────
     let frameId = 0;
     const animate = () => {
       frameId = requestAnimationFrame(animate);
@@ -317,72 +438,68 @@ export function Card3DViewer({
       renderer.setSize(w, h, false);
       camera.aspect = w / h;
       camera.updateProjectionMatrix();
-
-      // Smooth angle interpolation toward target
-      const target  = targetAngleRef.current;
-      const current = currentAngleRef.current;
-      const next    = current + (target - current) * 0.08;
-      currentAngleRef.current = Math.abs(next - target) < 0.0005 ? target : next;
-
-      const a = currentAngleRef.current;
-
-      // Apply angle to card geometry:
-      //   cardGroup rotation keeps the back panel flat as the card opens/closes.
-      //   Individual panel mesh rotations control the opening angle.
-      if (cardGroupRef.current)  cardGroupRef.current.rotation.x  = Math.PI / 2 - a;
-      if (frontPanelRef.current) frontPanelRef.current.rotation.x = -a;
-      if (backPanelRef.current)  backPanelRef.current.rotation.x  = +a;
-
-      // In preview mode: hide popup elements while the card is mostly closed so
-      // they don't poke through the flat panels awkwardly.
-      if (previewModeRef.current && layerGroupRef.current) {
-        const openFraction = a / OPEN_ANGLE;
-        layerGroupRef.current.visible = openFraction > 0.25;
-      }
-
-      controls?.update();
+      controls.update();
       renderer.render(scene, camera);
     };
     animate();
 
     return () => {
       cancelAnimationFrame(frameId);
-      controls?.dispose();
+      controls.dispose();
       scene.traverse(o => disposeMesh(o));
       renderer.dispose();
       if (el.contains(renderer.domElement)) el.removeChild(renderer.domElement);
       sceneRef.current      = null;
-      cardGroupRef.current  = null;
-      layerGroupRef.current = null;
-      frontPanelRef.current = null;
-      backPanelRef.current  = null;
+      closedGroupRef.current = null;
+      openGroupRef.current   = null;
+      layerGroupRef.current  = null;
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // mount-only — mutable state goes through refs
+  }, []); // mount-only
 
-  // ── Rebuild card panels when cardColor changes ────────────────────────────
+  // ── Rebuild card geometry when colour or message text changes ───────────────
+  // Also runs once after mount (React calls every effect at least once).
+  // isOpen is read from the ref so it doesn't appear in the dep array; the
+  // visibility toggle effect handles isOpen changes without a full rebuild.
   useEffect(() => {
-    if (!sceneRef.current || !cardGroupRef.current) return;
-    const { frontPanel, backPanel } = buildCardPanels(cardGroupRef.current, sceneRef.current, cardColor);
-    frontPanelRef.current = frontPanel;
-    backPanelRef.current  = backPanel;
-    // Restore current animation angle on the newly created meshes
-    const a = currentAngleRef.current;
-    frontPanel.rotation.x = -a;
-    backPanel.rotation.x  = +a;
-  }, [cardColor]);
+    if (!sceneRef.current) return;
+    const scene = sceneRef.current;
 
-  // ── Rebuild layers when layers or showTabs changes ─────────────────────────
+    if (previewModeRef.current) {
+      // ── Preview: build both states, show the correct one ──────────────────
+      const closed = buildClosedCard(scene, cardColor, cardForeground, cardText, cardSubtext);
+      closed.visible = !isOpenRef.current;
+      closedGroupRef.current = closed;
+
+      const { group: openGrp, layerGroup } = buildOpenCard(scene, cardColor);
+      openGrp.visible = isOpenRef.current;
+      openGroupRef.current  = openGrp;
+      layerGroupRef.current = layerGroup;
+
+      rebuildLayers(layerGroup, layers, showTabs);
+    } else {
+      // ── Editor: always open, single geometry ──────────────────────────────
+      const { group: openGrp, layerGroup } = buildOpenCard(scene, cardColor);
+      openGroupRef.current  = openGrp;
+      layerGroupRef.current = layerGroup;
+
+      rebuildLayers(layerGroup, layers, showTabs);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cardColor, cardForeground, cardText, cardSubtext]);
+
+  // ── Toggle visibility when isOpen changes (no geometry rebuild) ─────────────
+  useEffect(() => {
+    if (isOpen === undefined) return; // editor mode
+    if (closedGroupRef.current) closedGroupRef.current.visible = !isOpen;
+    if (openGroupRef.current)   openGroupRef.current.visible   =  isOpen;
+  }, [isOpen]);
+
+  // ── Rebuild popup layers when layers or showTabs changes ────────────────────
   useEffect(() => {
     if (!layerGroupRef.current) return;
     rebuildLayers(layerGroupRef.current, layers, showTabs);
   }, [layers, showTabs]);
-
-  // ── Update animation target when isOpen changes ────────────────────────────
-  useEffect(() => {
-    if (isOpen === undefined) return; // editor mode — always open, never animate
-    targetAngleRef.current = isOpen ? OPEN_ANGLE : 0;
-  }, [isOpen]);
 
   // ─────────────────────────────────────────────────────────────────────────────
 
@@ -395,12 +512,13 @@ export function Card3DViewer({
     >
       <div ref={mountRef} className="w-full h-full" />
 
-      {/* Orbit hint — shown in both modes */}
+      {/* Orbit hint */}
       <div className="absolute bottom-2.5 right-3 pointer-events-none select-none">
         <span className="text-xs bg-black/40 text-white px-2.5 py-1 rounded-full">
           Drag · Scroll · Right-drag
         </span>
       </div>
+
       {/* Editor-only label */}
       {!isPreview && (
         <div className="absolute bottom-2.5 left-3 pointer-events-none select-none">

@@ -69,10 +69,7 @@ export function InstructionDiagram({ type, design }: InstructionDiagramProps) {
           <rect x="10" y="10" width="180" height="180" fill="#FAFAFA" stroke="#D1D5DB" strokeWidth="2" />
           <g transform="translate(100, 100)">
             {renderDesignSvgColored(designName)}
-            <path d="M -50,-50 Q -60,-40 -50,-30" stroke="#EF4444" strokeWidth="2" fill="none" strokeDasharray="5,5" />
-            <path d="M 50,-50 Q 60,-40 50,-30" stroke="#EF4444" strokeWidth="2" fill="none" strokeDasharray="5,5" />
-            <path d="M -50,50 Q -40,60 -30,50" stroke="#EF4444" strokeWidth="2" fill="none" strokeDasharray="5,5" />
-            <path d="M 50,50 Q 40,60 30,50" stroke="#EF4444" strokeWidth="2" fill="none" strokeDasharray="5,5" />
+            {renderDesignOutline(designName)}
           </g>
           <text x="100" y="195" textAnchor="middle" className="text-xs" fill="#6B7280">
             Cut along outline
@@ -327,6 +324,100 @@ function renderDesignSvg(name: string, size = 60) {
           fill="none"
           stroke="#374151"
           strokeWidth="2"
+        />
+      </g>
+    ),
+  };
+
+  return designs[name] || designs['Hearts'];
+}
+
+// Renders a dashed red outline that follows the actual shape of each design.
+// The outline is drawn at ~112 % of the base size so it appears just outside
+// the coloured shape, giving a clear "cut along this line" visual.
+function renderDesignOutline(name: string, size = 60): JSX.Element {
+  const s = size * 1.12;
+  const dash = {
+    stroke: '#EF4444',
+    strokeWidth: 2.5,
+    fill: 'none',
+    strokeDasharray: '5,4',
+  } as const;
+
+  const designs: Record<string, JSX.Element> = {
+    'Hearts': (
+      <path
+        d={`M 0,-${s/4}
+            C -${s/3},-${s/2} -${s/2},-${s/3} -${s/2},0
+            C -${s/2},${s/4} -${s/4},${s/2} 0,${s/1.5}
+            C ${s/4},${s/2} ${s/2},${s/4} ${s/2},0
+            C ${s/2},-${s/3} ${s/3},-${s/2} 0,-${s/4} Z`}
+        {...dash}
+      />
+    ),
+    'Flowers': (
+      <circle cx="0" cy="0" r={s * 0.56} {...dash} />
+    ),
+    'Stars': (
+      <path
+        d={`M 0,-${s/2}
+            L ${s/8},-${s/6}
+            L ${s/2},-${s/6}
+            L ${s/5},${s/12}
+            L ${s/3},${s/2}
+            L 0,${s/4}
+            L -${s/3},${s/2}
+            L -${s/5},${s/12}
+            L -${s/2},-${s/6}
+            L -${s/8},-${s/6} Z`}
+        {...dash}
+      />
+    ),
+    'Birthday Cake': (
+      <rect x={-s/3} y={-s/2} width={s*2/3} height={s} rx="3" {...dash} />
+    ),
+    'Gift Box': (
+      <rect x={-s/3} y={-s/4} width={s*2/3} height={s*2/3} rx="3" {...dash} />
+    ),
+    'Sun': (
+      <circle cx="0" cy="0" r={s * 0.52} {...dash} />
+    ),
+    'Moon': (
+      <circle cx="0" cy="0" r={s / 2.3} {...dash} />
+    ),
+    'Clouds': (
+      <ellipse cx="0" cy={-s/10} rx={s * 0.48} ry={s * 0.34} {...dash} />
+    ),
+    'Trees': (
+      <path d={`M 0,-${s/2} L -${s/3},${s/2} L ${s/3},${s/2} Z`} {...dash} />
+    ),
+    'Sparkles': (
+      <path
+        d={`M 0,-${s/3} L ${s/12},-${s/12} L ${s/3},0 L ${s/12},${s/12}
+            L 0,${s/3} L -${s/12},${s/12} L -${s/3},0 L -${s/12},-${s/12} Z`}
+        {...dash}
+      />
+    ),
+    'Music Notes': (
+      <rect x={-s/2.5} y={-s/2} width={s*0.85} height={s} rx="4" {...dash} />
+    ),
+    'Hearts Stack': (
+      <g>
+        <path
+          d={`M 0,-${s/6}
+              C -${s/4},-${s/3} -${s/3},-${s/4} -${s/3},0
+              C -${s/3},${s/6} -${s/6},${s/3} 0,${s/2.2}
+              C ${s/6},${s/3} ${s/3},${s/6} ${s/3},0
+              C ${s/3},-${s/4} ${s/4},-${s/3} 0,-${s/6} Z`}
+          {...dash}
+        />
+        <path
+          d={`M ${s/8},-${s/2.5}
+              C 0,-${s/2} -${s/6},-${s/2.2} -${s/6},-${s/4}
+              C -${s/6},-${s/12} -${s/12},0 ${s/8},${s/6}
+              C ${s/4},0 ${s/3},-${s/12} ${s/3},-${s/4}
+              C ${s/3},-${s/2.2} ${s/5},-${s/2} ${s/8},-${s/2.5} Z`}
+          {...dash}
         />
       </g>
     ),

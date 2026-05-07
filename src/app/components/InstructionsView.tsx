@@ -6,6 +6,17 @@ import { Card } from './ui/card';
 import { DiagramKey } from './DiagramKey';
 import { InstructionDiagram } from './InstructionDiagram';
 
+// ─── Tutorial videos ──────────────────────────────────────────────────────────
+
+const TUTORIAL_VIDEOS: Record<string, string> = {
+  'basic-tab':     'https://www.youtube.com/embed/PZnqAetH5YI',
+  'v-fold':        'https://www.youtube.com/embed/ZxI4A_o5G-U',
+  'parallel-fold': 'https://www.youtube.com/embed/BvF15GfYwVc',
+  'box-fold':      'https://www.youtube.com/embed/6FKi95a14N4',
+  'rotating':      'https://www.youtube.com/embed/QObYM0HtClk',
+  'accordion':     'https://www.youtube.com/embed/tRJnG_v20Iw',
+};
+
 // ─── Mechanism data ───────────────────────────────────────────────────────────
 
 const MECHANISM_META: Record<string, { name: string; emoji: string; description: string }> = {
@@ -110,6 +121,21 @@ export function InstructionsView() {
         </div>
 
         <DiagramKey />
+
+        {/* Tutorial video */}
+        {TUTORIAL_VIDEOS[mechanismId] && (
+          <div className="mt-8 rounded-xl overflow-hidden border border-gray-200 shadow-sm">
+            <div className="relative w-full" style={{ paddingBottom: '56.25%' }}>
+              <iframe
+                src={TUTORIAL_VIDEOS[mechanismId]}
+                title={`${meta.name} tutorial`}
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+                className="absolute inset-0 w-full h-full"
+              />
+            </div>
+          </div>
+        )}
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mt-8">
           {/* Drawing steps */}
