@@ -76,6 +76,8 @@ export function CardDesignProvider({ children }: { children: React.ReactNode }) 
   const [analysisData, setAnalysisData]     = useState<AnalysisResult | null>(null);
   const [isAnalyzing, setIsAnalyzing]       = useState(false);
   const [layers, setLayers]                 = useState<Layer[]>(saved.layers ?? [DEFAULT_LAYER]);
+  const layersRef = useRef<Layer[]>(layers);
+  useEffect(() => { layersRef.current = layers; }, [layers]);
   const [mechanism, setMechanism]           = useState<Mechanism>((saved.mechanism as Mechanism) ?? 'v-fold');
   const [designElement, setDesignElement]   = useState<ElementVariant | null>(null);
   const [cardData, setCardData]             = useState<CardData>(saved.cardData ?? DEFAULT_CARD);
@@ -106,9 +108,13 @@ export function CardDesignProvider({ children }: { children: React.ReactNode }) 
   const handleImageUpload = useCallback(async (url: string) => {
     setUploadedImage(url);
     setDesignElement(null);
-    // Replace layers with a single fresh layer that carries the new image so
-    // the editor & 3D preview always reflect the most recently uploaded image.
-    setLayers([{ ...DEFAULT_LAYER, imageData: url }]);
+    // Append a new layer carrying the uploaded image; deselect all existing layers.
+    const current = layersRef.current;
+    const newId   = current.length > 0 ? Math.max(...current.map(l => l.id)) + 1 : 1;
+    setLayers([
+      ...current.map(l => ({ ...l, selected: false })),
+      { ...DEFAULT_LAYER, id: newId, imageData: url, selected: true },
+    ]);
     setIsAnalyzing(true);
     try {
       setAnalysisData(await analyzeImage(url));

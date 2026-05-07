@@ -134,9 +134,11 @@ function generateInsidePage(layers: Layer[], rasterImages: (string | null)[]): s
 `;
 
   // ── Glue guides on back panel (one per layer) ───────────────────────────
-  // The tab BASE lies flat on the back panel adjacent to the spine.
-  // tabW runs along the spine → maps to vertical direction in this flat view.
-  // h_base runs perpendicular to the spine → maps to horizontal, leftward from foldX.
+  // Guide is oriented to match the glue flap on the cut tab piece:
+  //   width  = tw  (horizontal, matching the glue-flap width on the cut piece)
+  //   height = hb  (vertical, the base depth — short dimension)
+  // Positioned flush with the spine (right edge = foldX), vertically centred
+  // at the layer's spine position (from horizontalPosition).
   layers.forEach((layer, i) => {
     const tw = Math.max(0.5, ((layer.tabWidth  ?? 50) / 100) * CW * 0.75) * SC;
     const hb = Math.max(0.3, ((layer.tabDepth  ?? 50) / 100) * CH * 0.50) * SC;
@@ -144,7 +146,7 @@ function generateInsidePage(layers: Layer[], rasterImages: (string | null)[]): s
     const vOff = ((layer.horizontalPosition ?? 50) / 100 - 0.5) * CW * SC;
     const cy   = panelTop + panelH / 2 + vOff;
 
-    // Clamp guide box to stay within the back panel boundaries
+    // Guide: hb wide (narrow, horizontal, flush with spine), tw tall (vertical, centred at cy)
     const gx     = Math.max(bpX,      foldX - hb);
     const gw     = foldX - gx;                          // actual width after clamping
     const gy     = Math.max(panelTop, cy - tw / 2);

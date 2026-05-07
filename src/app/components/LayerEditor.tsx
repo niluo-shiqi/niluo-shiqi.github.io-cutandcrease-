@@ -123,26 +123,6 @@ export function LayerEditor() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Guard: when arriving via the upload path, ensure the layer reflects the
-  // currently uploaded image rather than a stale design-element image.
-  // Fires once on mount; only resets when there is a clear mismatch between
-  // uploadedImage and layers[0].imageData (and no design element is active).
-  useEffect(() => {
-    if (
-      uploadedImage &&
-      !designElement &&
-      layers.length === 1 &&
-      layers[0].imageData !== uploadedImage
-    ) {
-      const DEFAULT_LAYER_RESET = {
-        id: 1, name: 'Base Layer', depth: 50, height: 65, width: 70,
-        opacity: 100, verticalPosition: 50, tabWidth: 50, tabHeight: 50,
-        tabDepth: 50, horizontalPosition: 50, color: '#6366f1', selected: false,
-      };
-      setLayers([{ ...DEFAULT_LAYER_RESET, imageData: uploadedImage }]);
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // mount-only — intentionally does not re-run on state changes
 
   const [activeTool, setActiveTool]   = useState<'lasso' | null>(null);
   const [isDrawing, setIsDrawing]     = useState(false);
