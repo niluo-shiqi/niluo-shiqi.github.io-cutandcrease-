@@ -143,12 +143,21 @@ function generateInsidePage(layers: Layer[], rasterImages: (string | null)[]): s
     // horizontalPosition along the spine (3D X) → vertical offset in the flat template
     const vOff = ((layer.horizontalPosition ?? 50) / 100 - 0.5) * CW * SC;
     const cy   = panelTop + panelH / 2 + vOff;
-    const gx   = foldX - hb;
-    const gy   = cy - tw / 2;
+
+    // Clamp guide box to stay within the back panel boundaries
+    const gx     = Math.max(bpX,      foldX - hb);
+    const gw     = foldX - gx;                          // actual width after clamping
+    const gy     = Math.max(panelTop, cy - tw / 2);
+    const gy_bot = Math.min(panelBot, cy + tw / 2);
+    const gh     = gy_bot - gy;                         // actual height after clamping
+
+    if (gw <= 0 || gh <= 0) return;                     // nothing visible — skip
+
+    const labelY = Math.min(Math.max(cy, gy + 2), gy_bot - 1);
     s += `
 <!-- L${i + 1} base glue guide -->
-<rect x="${fp(gx)}" y="${fp(gy)}" width="${fp(hb)}" height="${fp(tw)}" ${GUIDE}/>
-<text x="${fp(gx + hb / 2)}" y="${fp(cy + 1.3)}"
+<rect x="${fp(gx)}" y="${fp(gy)}" width="${fp(gw)}" height="${fp(gh)}" ${GUIDE}/>
+<text x="${fp(gx + gw / 2)}" y="${fp(labelY + 1.3)}"
       text-anchor="middle" ${T(2.2, '#bbbbbb')}>L${i + 1} — glue base here</text>
 `;
   });
